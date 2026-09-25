@@ -3,7 +3,8 @@ import { existsSync, statSync } from "node:fs";
 import { isAbsolute } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { AGENT_KINDS, UPSTREAM_ROLE_NAMES } from "./config";
-import { handleCommand } from "./command";
+import type { AgentKind, RoleName } from "./config";
+import { handleCommand, UPSTREAM_MODEL_RECOMMENDATIONS } from "./command";
 
 export interface OnboardingIO {
   readonly ask: (question: string) => Promise<string>;
@@ -20,6 +21,19 @@ async function choose<T extends string>(entries: readonly T[], question: string,
     const selected = Number.isInteger(index) && index >= 1 ? entries[index - 1] : undefined;
     if (selected) return selected;
     io.print(`Choisis un numéro entre 1 et ${entries.length}.`);
+  }
+}
+
+async function chooseMany<T extends string>(entries: readonly T[], io: OnboardingIO): Promise<T[]> {
+  io.print(entries.map((entry, index) => `${index + 1}. ${entry}`).join("\n"));
+  while (true) {
+    const parts = (await io.ask("Numéros des CLI (ex. 1,3) : ")).split(",").map((part) => part.trim());
+    const indexes = parts.map(Number);
+    if (parts.length > 0 && parts.every((part) => /^[1-9]\d*$/.test(part)) &&
+        indexes.every((index) => index <= entries.length) && new Set(indexes).size === indexes.length) {
+      return indexes.map((index) => entries[index - 1]).filter((entry): entry is T => entry !== undefined);
+    }
+    io.print(`Choisis un ou plusieurs numéros distincts entre 1 et ${entries.length}, séparés par des virgules.`);
   }
 }
 
@@ -44,13 +58,19 @@ export async function runOnboarding(io: OnboardingIO): Promise<void> {
     return;
   }
 
-  io.print("\nQuel rôle veux-tu configurer ?");
-  const role = await choose(UPSTREAM_ROLE_NAMES, "Numéro du rôle : ", io);
-  io.print("\nQuelle CLI déjà connectée veux-tu utiliser ?");
-  const kind = await choose(installed, "Numéro de la CLI : ", io);
-  const model = await required(`Modèle accepté par ${kind} (l'accès n'est pas vérifié) : `, io);
-  await execute(withConfig(["setup", "--role", role, "--kind", kind, "--model", model]));
-  io.print(`Rôle enregistré : ${role} -> ${kind} ${model}.`);
+  io.print("\nQuelles CLI veux-tu configurer ? Une même session peut en configurer plusieurs.");
+  const selected = await chooseMany(installed, io);
+  const configured: Array<{ readonly role: RoleName; readonly kind: AgentKind }> = [];
+  for (const kind of selected) {
+    io.print(`\nQuel rôle veux-tu attribuer à ${kind} ? Chaque rôle a une seule CLI.`);
+    const available = UPSTREAM_ROLE_NAMES.filter((role) => !configured.some((item) => item.role === role));
+    const role = await choose(available, "Numéro du rôle : ", io);
+    io.print(`Recommandation Lauren Tan pour ${role} : ${UPSTREAM_MODEL_RECOMMENDATIONS[role].join(", ")} (modèles Cursor, à adapter pour ${kind}).`);
+    const model = await required(`Modèle accepté par ${kind} (l'accès n'est pas vérifié) : `, io);
+    await execute(withConfig(["setup", "--role", role, "--kind", kind, "--model", model]));
+    configured.push({ role, kind });
+    io.print(`Rôle enregistré : ${role} -> ${kind} ${model}.`);
+  }
 
   const launch = (await io.ask("Lancer un premier agent maintenant ? (o/N) : ")).trim().toLowerCase();
   if (launch !== "o" && launch !== "oui") {
@@ -58,6 +78,9 @@ export async function runOnboarding(io: OnboardingIO): Promise<void> {
     return;
   }
 
+  const role = configured.length === 1
+    ? configured[0].role
+    : await choose(configured.map((item) => item.role), "Numéro du rôle à lancer : ", io);
   let cwd: string;
   while (true) {
     cwd = await required("Chemin absolu du dossier où l'agent travaillera : ", io);

@@ -45,7 +45,7 @@ test("onboarding configures a chosen Codex role after correcting invalid answers
   });
 
   await runOnboarding({
-    ask: answers(["99", "2", "1", "", "gpt-6-sol", "n"]),
+    ask: answers(["99", "1", "2", "", "gpt-6-sol", "n"]),
     print: () => {},
     execute,
     configPath,
@@ -57,7 +57,7 @@ test("onboarding configures a chosen Codex role after correcting invalid answers
   expect(await Bun.file(join(directory, "runs")).exists()).toBe(false);
 });
 
-test("onboarding starts the selected CLI in the requested folder when the user opts in", async () => {
+test("onboarding starts the chosen role after configuring two distinct CLIs", async () => {
   const directory = await mkdtemp(join(tmpdir(), "pstack-init-"));
   directories.push(directory);
   const configPath = join(directory, "config.json");
@@ -81,12 +81,14 @@ test("onboarding starts the selected CLI in the requested folder when the user o
   };
   const printed: string[] = [];
   const execute = (argv: string[]) => handleCommand(argv, {
-    lookup: (executable) => executable === "opencode" ? "C:/bin/opencode" : null,
+    lookup: (executable) => executable === "claude" || executable === "opencode"
+      ? `C:/bin/${executable}` : null,
     runner, configPath,
   });
 
   await runOnboarding({
-    ask: answers(["2", "1", "openai/gpt-6-sol", "o", "dossier-absent", directory, "Corrige le bogue"]),
+    ask: answers(["1,1", "1,2", "5", "sonnet", "2", "openai/gpt-6-sol",
+      "o", "2", "dossier-absent", directory, "Corrige le bogue"]),
     print: (line) => printed.push(line),
     execute,
     configPath,
@@ -98,5 +100,32 @@ test("onboarding starts the selected CLI in the requested folder when the user o
     name, "--kind", "opencode", "--pane", "pane", "--", "-m", "openai/gpt-6-sol"]);
   expect(calls[2]).toContain("Corrige le bogue");
   expect(printed.join("\n")).toContain("Réponse de l'agent");
+  expect((await loadConfig(configPath)).roles).toEqual({
+    "judgment and prose": { kind: "claude", model: "sonnet" },
+    "bug-fix": { kind: "opencode", model: "openai/gpt-6-sol" },
+  });
   expect((await listRuns(join(directory, "runs")))[0]?.name).toBe(name);
+});
+
+test("onboarding offers only unused roles for later CLIs and saves each choice", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "pstack-init-"));
+  directories.push(directory);
+  const configPath = join(directory, "config.json");
+  const execute = (argv: string[]) => handleCommand(argv, {
+    lookup: (executable) => ["claude", "codex", "opencode"].includes(executable)
+      ? `C:/bin/${executable}` : null, configPath,
+  });
+
+  await runOnboarding({
+    ask: answers(["1,2,3", "2", "sonnet", "2", "gpt-6-sol", "2", "openai/gpt-6-sol", "n"]),
+    print: () => {},
+    execute,
+    configPath,
+  });
+
+  expect((await loadConfig(configPath)).roles).toEqual({
+    "bug-fix": { kind: "claude", model: "sonnet" },
+    "perf-issue": { kind: "codex", model: "gpt-6-sol" },
+    hillclimb: { kind: "opencode", model: "openai/gpt-6-sol" },
+  });
 });

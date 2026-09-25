@@ -18,10 +18,10 @@ bun src/onboard.ts
 L'assistant interactif `bun src/onboard.ts` :
 
 1. Affiche **toujours** les recommandations officielles de Lauren Tan pour les 17 rôles, les budgets et les choix déjà enregistrés.
-2. Détecte Claude Code, Codex, OpenCode et Pi sur le `PATH`. Tu choisis un rôle par numéro, une CLI installée par numéro, puis **un identifiant de modèle que ta CLI accepte**. Les noms de modèles Cursor recommandés en amont ne sont pas automatiquement valables dans les autres CLI.
-3. Enregistre ton choix et te propose de lancer un premier agent. Si tu acceptes, donne le chemin absolu d'un dossier existant et la tâche à accomplir. Tu peux refuser et démarrer un agent plus tard.
+2. Détecte Claude Code, Codex, OpenCode et Pi sur le `PATH`. Tu choisis **une ou plusieurs CLI** avec leurs numéros séparés par des virgules, par exemple `1,2,3`. Pour chacune, choisis un rôle distinct ; sa recommandation Lauren Tan est rappelée juste avant de saisir **un identifiant de modèle que ta CLI accepte**. Les noms de modèles Cursor recommandés en amont ne sont pas automatiquement valables dans les autres CLI.
+3. Enregistre chaque choix et te propose de lancer **un** premier agent. Si plusieurs rôles viennent d'être configurés, tu choisis lequel lancer, puis donnes le chemin absolu d'un dossier existant et la tâche à accomplir. Tu peux refuser et démarrer des agents plus tard.
 
-L'onboarding est relançable pour configurer d'autres rôles. Il ne remplace pas la CLI complète. Pour une configuration isolée, utilise `bun src/onboard.ts --config C:\chemin\vers\config.json` et repasse ce chemin aux commandes avancées.
+Un rôle n'enregistre actuellement **qu'une seule paire CLI/modèle** : sélectionner plusieurs CLI dans l'onboarding leur attribue des rôles différents, pas un groupe interchangeable pour un seul rôle. L'onboarding est relançable pour configurer d'autres rôles. Il ne remplace pas la CLI complète. Pour une configuration isolée, utilise `bun src/onboard.ts --config C:\chemin\vers\config.json` et repasse ce chemin aux commandes avancées.
 
 ### Retrouver l'agent après le premier lancement
 
