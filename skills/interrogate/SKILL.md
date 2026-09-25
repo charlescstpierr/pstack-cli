@@ -1,0 +1,118 @@
+---
+name: interrogate
+description: "Use for \"interrogate\", \"adversarial review\", \"multi-model review\", \"challenge this\", \"stress test this code\", \"find blind spots\", or \"tear this apart\". Multiple LLM reviewers challenge changes from independent angles."
+---
+
+# Interrogate
+
+Launch one reviewer per configured model to adversarially review code changes. Each model gets the same prompt and rubric. The adversarial signal comes from model diversity, not assigned personas.
+
+The deliverable is a synthesized verdict. Do NOT auto-apply changes.
+
+## Running reviewers
+
+Each reviewer is a separate CLI agent that Herdr starts in its own workspace:
+
+```bash
+pstack-cli run --role "interrogate reviewers" --cwd "$PWD" --prompt "<filled reviewer prompt>"
+```
+
+`run` resolves the role to a CLI kind and model from `pstack-cli setup`, creates a Herdr workspace with `--no-focus`, starts the agent in its root pane, submits the prompt, and returns once the agent settles as `idle`, `done`, or `blocked`. Read the findings with `pstack-cli read <worker>`. `run` never substitutes a model: an unconfigured role or an uninstalled CLI fails the launch, so run the `setup-pstack` skill first. Reviewers have no read-only switch, so the prompt says they must not modify files.
+
+## Step 1, Determine Scope
+
+Identify what to review from context:
+
+- If the user points at specific files or a diff, use that
+- If on a feature branch, run `git diff main...HEAD` (or the appropriate base branch) for the full changeset
+- If the user's message references recent work, gather the relevant files
+
+Package the diff (or file contents) plus any surrounding context files the reviewers need to understand the code. Write the package to a file the reviewers can read (for example `/tmp/interrogate-<slug>/package.md`) and point the prompt at it rather than inlining a large diff.
+
+## Step 2, State the Intent
+
+Before launching reviewers, state the intent explicitly. Derive this from:
+
+- The user's message
+- Commit messages
+- PR description if one exists
+- The code itself
+
+Write one clear paragraph. If you're unsure about the intent, ask the user before proceeding.
+
+## Step 3, Launch Reviewers
+
+The panel is one reviewer per model family the user wants on it. The `interrogate reviewers` role stores one kind and one model, so seat the panel like this:
+
+1. Read `pstack-cli status` for the current `interrogate reviewers` selection. That is Reviewer A.
+2. For each further seat the user named (in this conversation or when running `setup-pstack`), run `pstack-cli setup --role "interrogate reviewers" --kind <kind> --model <model>`, launch that reviewer as a background job, and continue to the next seat.
+3. After the last launch, restore the Reviewer A selection with `setup`.
+
+Label the reviewers A, B, C, and so on, extending or shrinking to the seat count. With one configured selection and no seat list, run Reviewer A alone and say the panel has one model family. Prefer seats on a different CLI kind from the one this session runs on, since the adversarial signal comes from family diversity.
+
+Read `references/reviewer-prompt.md` and fill in the template with:
+1. The stated intent
+2. The diff or file contents (or the package path from Step 1)
+3. The review rubric from `references/rubric.md`
+4. The code-quality lens from `references/code-quality-review.md`
+5. One line: do not modify any file; reply with findings only
+
+The same filled template goes to all reviewers, so every model applies the code-quality lens. Launch them so they run at the same time, then `wait` and read each transcript with `pstack-cli read`.
+
+If a launch fails because that seat's CLI isn't installed, drop the seat, say so in the Reviewers section, and don't block the review on it.
+
+## Step 4, Synthesize
+
+As results come back, build a unified picture:
+
+1. **Parse all findings** from the reviewers
+2. **Identify consensus**. Findings raised by 2+ models independently are highest signal.
+3. **Identify lone-model findings**. Still worth reading, but weight accordingly.
+4. **Deduplicate**. Different models may describe the same issue differently. Merge these and note which models raised it.
+5. **Note disagreements**. If one model flags something and another explicitly says the opposite, that's useful context for the verdict.
+
+## Step 5, Lead Judgment
+
+You are the lead reviewer, a pragmatic senior engineer, not a neutral aggregator.
+
+Read `references/lead-judgment.md` for the full framework.
+
+Categorize every finding using these buckets:
+
+- **Act on**. Real issues affecting correctness, security, or maintainability given the actual goals. These would block a real PR.
+- **Consider**. Legitimate points, but you're not sure they outweigh the cost of addressing them right now. Worth the user's attention.
+- **Noted**. Technically valid but not actionable. Context-dependent, premature optimization, or low-impact given the current stage.
+- **Dismissed**. Wrong, nitpicky, or missing context. Brief explanation why.
+
+For each finding, include:
+- Which model(s) raised it
+- The category (act on / consider / noted / dismissed)
+- A one-line rationale for the categorization
+
+## Output Format
+
+Present the verdict in this structure:
+
+### Intent
+> [The stated intent paragraph from Step 2]
+
+### Reviewers
+- Reviewer [label]: [kind and model], [N findings] (one bullet per reviewer)
+
+### Act On
+[Findings that should be addressed. For each: description, which models raised it, why it matters.]
+
+### Consider
+[Findings worth thinking about. For each: description, which models raised it, tradeoff involved.]
+
+### Noted
+[Valid but low-priority. Brief list.]
+
+### Dismissed
+[Rejected findings with brief rationale.]
+
+### Agreement Map
+[Where did models agree, where did they diverge, and what does the pattern of agreement/disagreement tell us?]
+
+---
+Adapted from the `pstack` plugin by Cursor (interrogate). See the root LICENSE for attribution and terms.

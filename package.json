@@ -1,0 +1,19 @@
+{
+  "name": "pstack-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "pstack-cli": "./src/index.ts",
+    "pstack-init": "./src/onboard.ts"
+  },
+  "description": "An independent CLI kit adapted from the Pstack Cursor plugin.",
+  "scripts": {
+    "build": "bun build ./src/index.ts ./src/onboard.ts --target bun --outdir ./dist",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "typescript": "^5.0.0"
+  }
+}

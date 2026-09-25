@@ -1,0 +1,15 @@
+### Autonomous run
+
+**You own the exit condition. Define done, then drive to it without stopping.**
+
+There's no built-in loop command in a Herdr-managed CLI agent. The loop is you: a bounded iteration you write down, wake from, and re-enter until the predicate holds. Other playbooks (Bug fix, Babysit, Shipping) borrow the wake mechanism from step 2.
+
+1. State the exit condition as a checkable predicate before the first iteration (tests green, repro fixed, all N PRs merged, pixel-diff zero). Write it, with the command that checks it, at the top of a scratch file such as `<repo>/.pstack/<slug>-run.md`, so a resumed session finds it.
+2. Pick the wake mechanism. An event to watch (CI, a merge, a ref advancing) gets a blocking watcher you run as a background shell job and wait on: `gh pr checks <pr> --watch`, `gh run watch <run-id>`, `origin pr checks <pr> --watch`, or a delegate launched with `pstack-cli run` whose brief is to poll the event and settle when it fires (`pstack-cli run` returns once the delegate settles, so waiting on that job is the wake). Add a long time-based heartbeat as fallback so a dead watcher can't hang you forever. No event gets a fixed-interval heartbeat sized to when the result is worth re-checking, implemented as a bounded `sleep` between iterations of your own loop, never an unbounded one. If your CLI provides its own scheduled or looping mechanism, you may use it, but the predicate and the scratch file stay the source of truth.
+3. Each iteration makes the smallest change the evidence justifies, verifies it against the predicate, commits if it advanced, discards changes that didn't help. Belt-and-suspenders that "might help" gets reverted, not left to ride.
+   Sequence the work via the **sequence-verifiable-units** principle skill (`pstack-cli skill principle-sequence-verifiable-units`), verifying each unit before the next instead of batching checks at the end.
+4. Mid-run discoveries are yours. Address broken skills, related bugs, flaky verifiers, review noise, tooling failures, orphaned follow-ups, and fixable drift yourself under poteto mode. Put out-of-band fixes in their own PR. Do not park reversible work for the human or stop to ask a question your CLI would otherwise prompt for. Surface only irreversible actions, genuine product or preference calls no experiment can settle, or a real dead end. Keep the predicate as the main drive, and return to it after each side fix.
+5. Checkpoint every iteration via the **show-me-your-work** skill (`pstack-cli skill show-me-your-work`), a row for what changed and whether the predicate moved. Append the row to the scratch file from step 1 as well, so context compaction or a CLI restart loses nothing; Session pickup (`pstack-cli playbook session-pickup`) resumes from it.
+6. Stop when the predicate is met. A plateau is not a stop, so keep going and pivot your approach to push past it. Surface a genuine dead end rather than spinning, and never relax the predicate to declare victory.
+
+**Reply:** the exit condition, iterations run, what landed, what was discarded, final predicate state, and the path of the run's scratch file.
