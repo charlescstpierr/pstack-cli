@@ -28,11 +28,11 @@ Only edit the verification skill's own directory (its SKILL.md, features/, and a
 2. **Source wave.** One read-only worker per feature file, launched concurrently on the `how explorer` role. Each explains "how does this user-facing feature work?" from source, flags likely doc drift with citations, and returns one concise live-verification recipe. Children never drive the app and never edit files; say so in the brief, since a CLI agent has no read-only mode you can enforce from outside. Return shape: feature summary / source entry points / likely drift or none / one recipe.
 
    ```bash
-   pstack-cli run --role "how explorer" --cwd "<repo>" --prompt "Read-only. Do not edit files or launch the app. Feature file: .pstack/skills/verify-<app>/features/<feature>.md. Explain from source how this user-facing feature works, cite likely doc drift with file paths, and return one live-verification recipe. End with: feature summary / source entry points / likely drift or none / one recipe." > reader-<feature>.out
-   pstack-cli read <worker>
+   pstack-cli delegate --task-id <id> --role "how explorer" --cwd "<repo>" --prompt "Read-only. Do not edit files or launch the app. Feature file: .pstack/skills/verify-<app>/features/<feature>.md. Explain from source how this user-facing feature works, cite likely doc drift with file paths, and return one live-verification recipe. End with: feature summary / source entry points / likely drift or none / one recipe."
+   pstack-cli collect <id>
    ```
 
-   Start each invocation in a separate terminal or Herdr pane to run them concurrently. Workers share the checkout because they only read it. An unconfigured role fails; run the `setup-pstack` skill first. Keep the fan-out within what `pstack-cli status` shows the machine can hold.
+   Send every reader's `delegate` before collecting any; each gets its own sibling pane. Workers share the checkout because they only read it. An unconfigured role fails; run the `setup-pstack` skill first. Keep the fan-out within what `pstack-cli status` shows the machine can hold.
 
 3. **Reconcile.** Every feature file has a returned summary. Merge overlapping recipes into as few app states as practical. Spot-check cited drift; don't re-prove clean claims. Sweep recent churn for user-facing surfaces missing from the map. Require a concrete source path before calling one missing.
 

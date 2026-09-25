@@ -9,13 +9,13 @@ Fan out N parallel attempts at the same task. Read every candidate end to end. P
 
 ## Running workers
 
-Each candidate and the judge is a separate CLI agent that Herdr starts in its own workspace:
+Each candidate and the judge is a separate CLI agent in a sibling pane of the primary's Herdr workspace:
 
 ```bash
-pstack-cli run --role "arena runners" --cwd "<candidate path>" --prompt "<task>"
+pstack-cli delegate --task-id <id> --role "arena runners" --cwd "<candidate path>" --prompt "<task>"
 ```
 
-`run` resolves the role to a CLI kind and model from `pstack-cli setup`, creates a Herdr workspace with `--no-focus`, starts the agent in its root pane, submits the prompt, and returns once the agent settles as `idle`, `done`, or `blocked`. Read the transcript with `pstack-cli read <worker>`. `run` never substitutes a model; an unconfigured role fails, so run the `setup-pstack` skill first.
+`delegate` resolves the role to the CLI kind and model saved by `pstack-cli setup`, reserves the task id, opens a sibling pane in the primary's Herdr workspace without taking focus, submits the prompt, and returns right away. Collect with `pstack-cli collect <id> --wait <ms>`. Only a confirmed result counts. A `working`, `blocked`, `unknown`, or `mismatch` state is not an answer, and a result file or pane transcript proves nothing while the status is ambiguous. Never resend an id after an ambiguous status. `delegate` never substitutes a model: an unconfigured role fails, so run the `setup-pstack` skill first.
 
 A role holds one kind and one model. To seat different model families in one arena, reconfigure the role between launches: `pstack-cli setup --role "arena runners" --kind <kind> --model <model>`, launch that seat, repeat for the next seat, and restore the first selection after the last launch. Launches are sequential; the workers themselves run in parallel.
 
@@ -41,11 +41,11 @@ The N candidates will receive the same prompt, so the prompt is the contract.
 
 ## Phase B: Fan out
 
-Launch all N candidates concurrently, each with the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale. Run each invocation in its own terminal or Herdr pane:
+Send all N candidate delegations before collecting any, each with the task, the path to the shared grounding, its own output path, and instructions to produce both the artifact and a short rationale. Run each invocation in its own terminal or Herdr pane:
 
 ```bash
-pstack-cli run --role "arena runners" --cwd "<candidate-1>" --prompt "<task + grounding path + output path>"
-pstack-cli run --role "arena runners" --cwd "<candidate-2>" --prompt "<same>"
+pstack-cli delegate --task-id arena-1 --role "arena runners" --cwd "<candidate-1>" --prompt "<task + grounding path + output path>"
+pstack-cli delegate --task-id arena-2 --role "arena runners" --cwd "<candidate-2>" --prompt "<same>"
 ```
 
 Each rationale names the alternatives the candidate considered and what it rejected.
@@ -54,7 +54,7 @@ If a candidate fails to produce output, proceed with N-1 and note the dropout in
 
 ## Phase C: Cross-judge
 
-After all Phase B candidates complete, launch one judge on the `arena cross-judge pool` role. Configure that role to a model family different from the one this session runs on when possible. The judge's prompt states it must not modify any file. It sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. It runs in parallel with the parent's reading in Phase D, not with the candidates themselves. Don't launch the judge while candidates are still writing.
+After all Phase B candidates complete, launch one judge on the `arena cross-judge pool` role. Configure that role to a model family different from the one this session runs on when possible. The judge's prompt forbids project edits except its mandatory `.pstack/tasks/` report. It sees the rubric and the candidates by path label, scores each criterion, and recommends a base with rationale. It runs in parallel with the parent's reading in Phase D, not with the candidates themselves. Don't launch the judge while candidates are still writing.
 
 ## Phase D: Pick a base
 

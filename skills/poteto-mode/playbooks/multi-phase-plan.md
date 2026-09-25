@@ -2,17 +2,17 @@
 
 **You own the plan, not the code. The plan is a checklist an owner runs box by box and the operator audits from the evidence.** The plan is the deliverable. Do not implement.
 
-**Tooling this playbook assumes.** Exploration and prototypes run as Herdr-managed delegates from `pstack-cli run`, with roles configured beforehand by `pstack-cli setup`. pstack-cli bundles `scripts/check-plan.ts`; run `bun scripts/check-plan.ts <plan.md>` over the finished plan and fix every reported problem. `/technical-writing` and `/unslop` are the bundled **technical-writing** and **unslop** skills. `control-ui` and `control-cli` from `cursor-team-kit` are not bundled; the plan names them only if they are installed for the CLI that will run the lanes, and otherwise names a scripted driver per surface.
+**Tooling this playbook assumes.** Exploration and prototypes run as sibling-pane delegates from `pstack-cli delegate`, with roles configured beforehand by `pstack-cli setup`. pstack-cli bundles `scripts/check-plan.ts`; run `bun scripts/check-plan.ts <plan.md>` over the finished plan and fix every reported problem. `/technical-writing` and `/unslop` are the bundled **technical-writing** and **unslop** skills. `control-ui` and `control-cli` from `cursor-team-kit` are not bundled; the plan names them only if they are installed for the CLI that will run the lanes, and otherwise names a scripted driver per surface.
 
 1. When the change is one or two files with an obvious approach, skip the plan. Say so and stop.
 2. Settle open questions by prototype before you write. Run `pstack-cli playbook prototype` for each. Keep the branch, the SHA, and the screenshots for Appendix A. Ask the operator only about a product or preference call that no run can settle. Give options (the **never-block-on-the-human** principle skill).
 3. Explore in delegates, one per subsystem, each in its own worktree and on an explicit role (the **guard-the-context-window** principle skill):
 
    ```bash
-   pstack-cli run --role "judgment and prose" --cwd "<worktree>" --prompt "<explore brief: return file pointers, conventions, test commands, entry points; no inlined dumps>" --skill poteto-mode
+   pstack-cli delegate --task-id <id> --role "judgment and prose" --cwd "<worktree>" --prompt "<explore brief: return file pointers, conventions, test commands, entry points; no inlined dumps>" --skill poteto-mode
    ```
 
-   Start each invocation in its own terminal or Herdr pane for parallel work; the shell `&` is not portable to PowerShell. Read each with `pstack-cli read <worker>`. Each returns file pointers, conventions, test commands, and entry points. No inlined dumps.
+   Send every explore `delegate` before collecting any; each gets its own sibling pane. Read each with `pstack-cli collect <id>`. Each returns file pointers, conventions, test commands, and entry points. No inlined dumps.
 4. Copy the skeleton below into the plan file and fill every placeholder. Unless the operator names a path, write the file under the agent store's `docs/`. Keep every heading and every sub-block in the order shown. One section per PR. One PR is one change with its own evidence (the **sequence-verifiable-units** principle skill). Name the execution playbook in **How to read this**. Pick between `autopilot-full` and `autopilot-stack` per the rule at the end of `pstack-cli playbook autopilot-stack`. A standing program takes `pstack-cli playbook orchestrate`.
 5. Write under the **technical-writing** skill in full (`pstack-cli skill technical-writing`), then run the **unslop** skill over it (`pstack-cli skill unslop`). The body is one Diátaxis mode, how-to. Appendices hold explanation and reference. Each heading states the task or the finding. No long dashes. No mid-sentence colons.
 6. Check the plan mechanically. Run `bun scripts/check-plan.ts <plan.md>` and fix every line it prints (the **encode-lessons-in-structure** principle skill). The checker enforces every required heading and PR sub-block, every verification rule, the ten live lanes, the perf gate, the review gate, and the punctuation rules.
@@ -47,13 +47,13 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
   - [ ] `<control skill or driver doc path>`
   - [ ] `pstack-cli playbook opening-a-pr`
   - [ ] `pstack-cli skill <each other leaf skill the program uses>`
-- [ ] Arm the 30-minute audit tick as the bounded shell loop from the execution playbook (wake on a delegate's `run` returning or on the 30-minute cap). Never leave the cadence to memory.
-- [ ] Use this tick prompt, verbatim. "Re-read the execution playbook and goal.md. Audit the operation against both and fix drift in this tick. Probe every active lane through pstack-cli status, pstack-cli read, and the forge, and judge progress by side effects only. Stand down a stuck lane and dispatch its replacement now. Then post a short status message to the operator in chat only when the audit found a tracked change that no earlier status message reported, such as a PR opened, a code-ready head, a round launched or closed, a verdict, a merge, a stuck agent and the action taken, a blocker added or cleared, or a decision only the operator can make. Name every such change and nothing else. Do not repeat a table, the merged list, or an unchanged blocker. If the audit found none, end the turn with no reply text. Either way, log this tick's row in your decision trail. The row names the items reported, or none."
-- [ ] On the operator's hold or stand-down, send every owner a zero-writes order at once through its pane and confirm with `pstack-cli status`.
+- [ ] Arm the 30-minute audit tick as the bounded shell loop from the execution playbook (wake on a `collect` that returns a confirmed result or on the 30-minute cap). Never leave the cadence to memory.
+- [ ] Use this tick prompt, verbatim. "Re-read the execution playbook and goal.md. Audit the operation against both and fix drift in this tick. Probe every active lane through pstack-cli tasks, pstack-cli collect, and the forge, and judge progress by side effects only. Stand down a stuck lane and dispatch its replacement now. Then post a short status message to the operator in chat only when the audit found a tracked change that no earlier status message reported, such as a PR opened, a code-ready head, a round launched or closed, a verdict, a merge, a stuck agent and the action taken, a blocker added or cleared, or a decision only the operator can make. Name every such change and nothing else. Do not repeat a table, the merged list, or an unchanged blocker. If the audit found none, end the turn with no reply text. Either way, log this tick's row in your decision trail. The row names the items reported, or none."
+- [ ] On the operator's hold or stand-down, send every owner a zero-writes order at once (dismiss its id, or a fresh `delegate` carrying the hold) and confirm with `pstack-cli tasks`.
 
 ### Spawn owners
 
-- [ ] Spawn one owner per PR with `pstack-cli run` in its own worktree, carrying the full lifecycle the execution playbook names.
+- [ ] Spawn one owner per PR with `pstack-cli delegate` in its own worktree, carrying the full lifecycle the execution playbook names.
 - [ ] Follow this dependency graph. Start dependent work only after its parent merges, or base it on the parent branch when the execution playbook stacks.
   - [ ] <PR id> and <PR id> are independent and first. Both branch from `main`.
   - [ ] <PR id> after <PR id>.
@@ -79,7 +79,7 @@ Tests alone are not sufficient verification. A PR is verified only when its unit
 
 Each live lane runs in its own worktree on this machine at the PR head. Drive through the control skill or the scripted driver the plan names.
 
-- [ ] `git worktree add <lane-dir> <head SHA>` and run the lane with `pstack-cli run --cwd <lane-dir>`.
+- [ ] `git worktree add <lane-dir> <head SHA>` and run the lane with `pstack-cli delegate --task-id <id> --role <role> --cwd <lane-dir>`.
 - [ ] <Start the backend and the surface. Wait for ready. Name the port scheme so ten lanes do not collide.>
 - [ ] <Deliver input only through the control skill's or driver's commands. Name the read-only diagnostics.>
 - [ ] Save every screenshot to `<store>/swarm-<pr-id>/worker-<n>/<slug>.png` and return the paths with the report.

@@ -15,16 +15,16 @@ Use the caller's files or diff. Otherwise use the current diff against the base 
 
 ## Steps
 
-1. Launch Comment Sicko as a Herdr-backed worker. Its persona and rules live in [`references/comment-sicko.md`](references/comment-sicko.md). Build the prompt from that file verbatim, then append the scope (file list, or the diff command and base branch). Do not restate its rules in your own words.
+1. Delegate Comment Sicko to a worker in a sibling pane. Its persona and rules live in [`references/comment-sicko.md`](references/comment-sicko.md). Build the prompt from that file verbatim, then append the scope (file list, or the diff command and base branch). Do not restate its rules in your own words.
 
    ```bash
-   pstack-cli run --role "judgment and prose" --cwd "<checkout>" --prompt "$(cat skills/no-comments/references/comment-sicko.md)
+   pstack-cli delegate --task-id <id> --role "judgment and prose" --cwd "<checkout>" --prompt "<comment-sicko.md verbatim>
 
    Scope: <files or 'git diff main...HEAD plus the working tree'>. Delete comments in scope, then report."
-   pstack-cli read <worker>
+   pstack-cli collect <id>
    ```
 
-   Comment Sicko writes to the checkout it is given, so run it in a worktree or on a branch you can diff and revert. `run` returns when it settles; if it settles `blocked` on an approval prompt, answer from the scope or restart it with a tighter brief. An unconfigured role fails; run the `setup-pstack` skill first.
+   Comment Sicko writes to the checkout it is given, so run it in a worktree or on a branch you can diff and revert. `delegate` returns right away, and `collect` reports its state. If it comes back `blocked` on an approval prompt, answer from the scope or dismiss it and delegate a tighter brief under a new task id. An unconfigured role fails; run the `setup-pstack` skill first.
 
 2. Inspect its report and diff. Reject application-code edits, scope escapes, exception-protected deletions, misstated `MUST KILL` reasons, and flags that treat kept intentional code as guilty. Reshape flags on our-code surprises stay actionable. Do not restore those comments. A keep survives only with proof it is about something we cannot change. Audit missed scoped lint and TypeScript suppressions. Correctness or safety suppressions stay actionable `MUST KILL`s. Restore deletions only with exact exceptions and scoped proof. Before accepting thin `IMPORTANT` or `do not remove` kills or keeps, run the **how** or **why** skill (`pstack-cli skill how`, `pstack-cli skill why`) on their symbol. If a kill is ambiguous, do not restore. If a keep is refuted or still ambiguous, delete it. Revert and rerun one rejected report with the failure named in the new prompt. Reject a second, report it open, and fail `no-comments`.
 3. Fix trivial accepted flags directly by deleting a dead path, dropping a parameter, or using the real API. If any fix needs a shape, run the **architect** skill (`pstack-cli skill architect`) once for the accepted set and surrounding code. Stop at the sketch. Architect shapes. Step 4 implements.

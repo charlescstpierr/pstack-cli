@@ -9,10 +9,28 @@ bun install
 bun src/onboard.ts
 ```
 
-The French-language onboarding shows Lauren Tan's pinned recommendations and your current selections, then lists installed CLIs. Enter one or several numbers separated by commas (for example `1,2,3`). For each chosen CLI, pick a **distinct role**; its upstream recommendation is repeated beside the model question. Enter a model that the chosen CLI accepts. It saves all selections, then optionally starts **one** of the newly configured roles in an absolute directory you provide. Press `n` (or Enter) to save without starting a worker. Model IDs and subscription access are not verified. A role currently stores one CLI/model pair; multiple selections do not make a pool of CLIs for the same role. Relaunch onboarding to configure other roles. For an isolated config, use `bun src/onboard.ts --config PATH` and pass the same `--config PATH` to the advanced commands below. Onboarding help: `bun src/onboard.ts --help`.
+The French-language onboarding shows Lauren Tan's pinned recommendations and your current selections, then lists installed CLIs. First pick the **primary conversation CLI and model**. Next enter one or several numbers separated by commas (for example `1,2,3`) for worker CLIs. For each worker, pick a **distinct role**; its upstream recommendation is repeated beside the model question. The selected models must be accepted by their CLIs; model IDs and subscription access are not verified. Onboarding saves every selection, then optionally opens the primary agent in an existing absolute project directory. Press `n` (or Enter) to configure without opening the conversation. A role stores one worker CLI/model pair; multiple selections do not form an interchangeable pool for one role. Relaunch onboarding to change selections. For an isolated config, use `bun src/onboard.ts --config PATH` and pass the same `--config PATH` to later commands. Onboarding help: `bun src/onboard.ts --help`.
 
 Every advanced example uses `bun src/index.ts`. After `bun run build`, use `bun dist/index.js` or `bun dist/onboard.js` with the same arguments.
 The bundled skills abbreviate the advanced command to `pstack-cli`. Run `bun link` from this checkout and add Bun's global bin directory to `PATH` to get both `pstack-cli` and the guided `pstack-init`, or substitute `bun /absolute/path/to/pstack-cli/src/index.ts` in those instructions.
+
+## Primary conversation and Herdr Agents sidebar
+
+Without the onboarding wizard, configure a primary separately from the worker roles:
+
+```sh
+bun src/index.ts setup --master opencode --model "openai/gpt-6-sol"
+bun src/index.ts setup --role "how explorer" --kind claude --model "sonnet"
+bun src/index.ts chat --cwd /absolute/path/to/project
+```
+
+`chat` creates one Herdr workspace, starts the primary CLI in its root pane, and has it read the local `pstack-master` and `poteto-mode` skills. In an interactive terminal outside Herdr, it attaches you directly to that agent. Detach with `ctrl+b q`; the CLI and its conversation stay alive in Herdr. It prints a name like `pstack-master-...`; `bun src/index.ts chat NAME [--config PATH]` attaches to the same process after verifying its workspace, pane, terminal and CLI. A closed CLI process cannot be revived by Pstack CLI.
+
+Ask the primary a normal question or development task. It routes that request through the bundled Pstack skill or playbook. When a workflow delegates, **the primary's shell tool** runs `pstack-cli delegate --task-id ID --role ROLE --prompt TEXT [--cwd PATH] [--skill NAME] [--config PATH]`. This reserves the ID, starts the role's real CLI agent in another Herdr pane, and returns without waiting for the entire answer. Both primary and worker appear as separate agents in Herdr's **Agents sidebar**. Sibling panes in the same workspace are the implementation, not the user interface you have to navigate.
+
+The primary calls `pstack-cli collect ID [--wait MS] [--config PATH]` to obtain a confirmed report, then judges it and replies in **its own conversation**. `working`, `blocked`, `unknown`, `missing`, and `mismatch` are not answers; a repeated task ID does not send the prompt again. `pstack-cli tasks` lists current delegations, and `pstack-cli dismiss ID` closes a confirmed finished worker's pane only while the same agent still occupies it. Workers write reports to `<worker-cwd>/.pstack/tasks/<master-name>/<id>.md`; ignore `.pstack/` in version-controlled worktrees. Give each worker that edits files its own git worktree. Run commands from inside the primary's Herdr pane; `delegate`, `collect`, `tasks`, and `dismiss` refuse a caller outside that identified pane.
+
+`run`, `read`, `resume`, and `status` below remain useful for standalone workers started outside a primary conversation. A standalone `run` still creates a separate workspace; it does not silently become a delegation.
 
 ## 1. Find your installed CLIs
 

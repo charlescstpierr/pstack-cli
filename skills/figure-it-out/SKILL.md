@@ -29,21 +29,21 @@ Decompose into atomic, independently-landable units. Sequence riskiest-unknown-f
 
 - Build the verification harness before the work, with the baseline captured from the pre-change state, so the check reads as "old value vs new value".
 - For one-way-door design decisions, run the **architect** skill (it runs **arena**). Skip it for mechanical work whose shape is already concrete. A second arena over a settled design is over-engineering (the **laziness-protocol** principle skill).
-- Decide what fans out. Parallelize only across seams, and give each worker its own worktree or branch (the **separate-before-serializing-shared-state** principle skill). Don't over-fan. Each worker is a live Herdr agent in its own workspace, so check `pstack-cli status` for what's already running and size the fan-out to the machine.
+- Decide what fans out. Parallelize only across seams, and give each worker its own worktree or branch (the **separate-before-serializing-shared-state** principle skill). Don't over-fan. Each worker is a live agent in a sibling pane of your Herdr workspace, so check `pstack-cli tasks` for what's already running and size the fan-out to the machine.
 - Write the designed phase list down. That list is what the human reviews.
 
 Then execute the design. Add its steps to the todolist as concrete items, after the Phase C entry and before Phase D. Run each under the Phase C loop discipline, and weave the Phase D log through them, a row as each step lands, rather than saving the whole trail for the end.
 
 ### Delegating a unit
 
-A unit that is worth its own worker runs through `pstack-cli run`:
+A unit that is worth its own worker runs through `pstack-cli delegate`, then `pstack-cli collect`:
 
 ```bash
-pstack-cli run --role "feature, refactoring" --cwd "<worktree>" --prompt "<brief>"
-pstack-cli read <worker>
+pstack-cli delegate --task-id <id> --role "feature, refactoring" --cwd "<worktree>" --prompt "<brief>"
+pstack-cli collect <id>
 ```
 
-Pick the role by difficulty: `feature, refactoring` for routine code, `hardest tasks` for cross-cutting design, gnarly concurrency, or subtle algorithms, `judgment and prose` for judging or writing. Parallel units use the **swarm** skill and its `swarm workers` role. `run` returns when the agent settles as `idle`, `done`, or `blocked`, and it never substitutes a model. An unconfigured role fails; run the `setup-pstack` skill first. Every brief stands alone: goal, scope, the unit's hypothesis, how to verify, and what to report. Ask the worker to end its reply with its report block so `pstack-cli read` picks it up.
+Pick the role by difficulty: `feature, refactoring` for routine code, `hardest tasks` for cross-cutting design, gnarly concurrency, or subtle algorithms, `judgment and prose` for judging or writing. Parallel units use the **swarm** skill and its `swarm workers` role. `delegate` returns as soon as the brief is submitted, and `collect` gives back either a confirmed result or an explicit `working`, `blocked`, `unknown`, or `mismatch` state. Neither substitutes a model. An unconfigured role fails; run the `setup-pstack` skill first. Every brief stands alone: goal, scope, the unit's hypothesis, how to verify, and what to report. Ask the worker to end its reply with its report block so `pstack-cli collect` picks it up.
 
 ## Phase C: Run the loop
 
@@ -51,7 +51,7 @@ Each unit is an experiment. State the hypothesis, make the smallest change, meas
 Apply the **sequence-verifiable-units** principle skill, verifying each unit before starting the next instead of batching checks at the end.
 
 - Verify by inspecting the artifact, never a self-report. When something passes too easily, suspect the observation method before the system.
-- Pair delegated work with a judge. The judge is a second `pstack-cli run` on the `judgment and prose` role, given the worker's diff and the gate, never the worker's own summary. If a worker games the gate, reset and harden the contract. If the gate itself is wrong, fix the gate in its own change rather than routing around it.
+- Pair delegated work with a judge. The judge is a second `pstack-cli delegate` on the `judgment and prose` role, given the worker's diff and the gate, never the worker's own summary. If a worker games the gate, reset and harden the contract. If the gate itself is wrong, fix the gate in its own change rather than routing around it.
 - A verdict is VERIFIED, NOT VERIFIED, or INCONCLUSIVE. Inconclusive is not a pass. Don't hide a negative.
 
 ## Phase D: Keep the audit trail

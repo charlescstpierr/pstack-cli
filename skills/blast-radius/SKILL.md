@@ -37,10 +37,10 @@ Step 4 is usually one small script that imports the same library the app ships a
 6. For a big or wide change, ask several models the same question and merge the answers. Different models catch different real bugs. Fan out through the Pstack CLI, one worker per model, then read each result:
 
    ```bash
-   pstack-cli run --role "arena runners" --cwd "$PWD" --skill blast-radius --prompt "Blast radius of <change>. Reply with the writeup contract from the skill."
+   pstack-cli delegate --task-id <id> --role "arena runners" --cwd "$PWD" --skill blast-radius --prompt "Blast radius of <change>. Reply with the writeup contract from the skill."
    ```
 
-   Each `run` creates a Herdr workspace with one root pane, starts the configured agent kind there, and submits the prompt. Wait for the settled state, then read the result with `pstack-cli read <name>` (or `herdr agent read <name> --source recent-unwrapped --lines 200`). Change the model between calls with `pstack-cli setup --role "arena runners" --kind KIND --model MODEL`, or pick a second configured role such as `"hardest tasks"`. If the `arena` skill is installed (`pstack-cli skill arena`), follow its merge procedure; otherwise merge by keeping every risk any worker proved and dropping the ones no worker could cite.
+   Each `delegate` opens a sibling pane, starts the configured agent kind there, submits the prompt, and returns. Send every worker before collecting any, then read each with `pstack-cli collect <id> --wait <ms>`. A pane transcript isn't a result while the status is ambiguous. Change the model between calls with `pstack-cli setup --role "arena runners" --kind KIND --model MODEL`, or pick a second configured role such as `"hardest tasks"`. If the `arena` skill is installed (`pstack-cli skill arena`), follow its merge procedure; otherwise merge by keeping every risk any worker proved and dropping the ones no worker could cite.
 
 ## What to hand back
 

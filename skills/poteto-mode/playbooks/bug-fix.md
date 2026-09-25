@@ -1,6 +1,6 @@
 ### Bug fix
 
-**You own this task. Plan, review, verify.** Delegate investigation and the fix to delegates via `pstack-cli run`, stay in the lead.
+**You own this task. Plan, review, verify.** Delegate investigation and the fix to delegates via `pstack-cli delegate`, stay in the lead.
 
 Be scientific. Every shipped line traces to runtime evidence. Belt-and-suspenders that "might help" is a hypothesis, not a fix. It does not ship. When evidence refutes a hypothesis, revert what it motivated. The smallest change the evidence justifies ships, nothing more.
 
@@ -9,10 +9,10 @@ Be scientific. Every shipped line traces to runtime evidence. Belt-and-suspender
 3. Plan the fix. If it crosses a function boundary, run the **architect** skill first (`pstack-cli skill architect`). Delegate implementation with the `bug-fix` role and a specific scope (file paths, the mechanism to fix, the repro command that must pass):
 
    ```bash
-   pstack-cli run --role "bug-fix" --cwd "<worktree>" --prompt "<brief>" --skill poteto-mode
+   pstack-cli delegate --task-id <id> --role "bug-fix" --cwd "<worktree>" --prompt "<brief>" --skill poteto-mode
    ```
 
-   `run` fails if the `bug-fix` role has no model configured; set one with `pstack-cli setup --role "bug-fix" --kind <cli> --model <model>` before the first launch. Give the delegate its own git worktree. Read its transcript with `pstack-cli read <worker>` and review the diff yourself.
+   `delegate` fails if the `bug-fix` role has no model configured; set one with `pstack-cli setup --role "bug-fix" --kind <cli> --model <model>` before the first launch. Give the delegate its own git worktree. Read its result with `pstack-cli collect <id>` and review the diff yourself.
 4. Verify on the same surface. The original repro now passes. "Inconclusive" or wrong-surface is not a pass. Flag it. Unit tests show branch behavior, not bug absence.
 5. Stage the commits so the failing repro lands before the fix in git history. See the **tdd** skill (`pstack-cli skill tdd`) for the failing-test-first cadence when the bug has a cheap local test path. Skip it when the test would be expensive, integration-heavy, or unclear.
    This is the canonical **sequence-verifiable-units** principle skill, the failing test first and the fix on top.

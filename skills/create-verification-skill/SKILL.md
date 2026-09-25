@@ -45,8 +45,8 @@ Run its own instructions end to end once: launch, doctor, drive ONE mapped featu
 The proof run can be delegated to a fresh worker, which is the strongest test of the skill's readability:
 
 ```bash
-pstack-cli run --role "swarm workers" --cwd "<repo>" --prompt "Read .pstack/skills/verify-<app>/SKILL.md and features/README.md. Launch, doctor, drive the <feature> feature, capture evidence, clean up, then confirm the evidence still exists. Report PASS or ISSUES with paths."
-pstack-cli read <worker>
+pstack-cli delegate --task-id <id> --role "swarm workers" --cwd "<repo>" --prompt "Read .pstack/skills/verify-<app>/SKILL.md and features/README.md. Launch, doctor, drive the <feature> feature, capture evidence, clean up, then confirm the evidence still exists. Report PASS or ISSUES with paths."
+pstack-cli collect <id>
 ```
 
 An unconfigured role fails. Run the `setup-pstack` skill first (`pstack-cli skill setup-pstack`).

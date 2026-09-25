@@ -11,13 +11,13 @@ The deliverable is a synthesized verdict. Do NOT auto-apply changes.
 
 ## Running reviewers
 
-Each reviewer is a separate CLI agent that Herdr starts in its own workspace:
+Each reviewer is a separate CLI agent in a sibling pane of the primary's Herdr workspace:
 
 ```bash
-pstack-cli run --role "interrogate reviewers" --cwd "$PWD" --prompt "<filled reviewer prompt>"
+pstack-cli delegate --task-id <id> --role "interrogate reviewers" --cwd "$PWD" --prompt "<filled reviewer prompt>"
 ```
 
-`run` resolves the role to a CLI kind and model from `pstack-cli setup`, creates a Herdr workspace with `--no-focus`, starts the agent in its root pane, submits the prompt, and returns once the agent settles as `idle`, `done`, or `blocked`. Read the findings with `pstack-cli read <worker>`. `run` never substitutes a model: an unconfigured role or an uninstalled CLI fails the launch, so run the `setup-pstack` skill first. Reviewers have no read-only switch, so the prompt says they must not modify files.
+`delegate` resolves the role to the CLI kind and model saved by `pstack-cli setup`, reserves the task id, opens a sibling pane in the primary's Herdr workspace without taking focus, submits the prompt, and returns right away. Collect with `pstack-cli collect <id> --wait <ms>`. Only a confirmed result counts. A `working`, `blocked`, `unknown`, or `mismatch` state is not an answer, and a result file or pane transcript proves nothing while the status is ambiguous. Never resend an id after an ambiguous status. `delegate` never substitutes a model: an unconfigured role fails, so run the `setup-pstack` skill first. Reviewers have no read-only switch, so the prompt forbids project edits except the mandatory `.pstack/tasks/` report.
 
 ## Step 1, Determine Scope
 
@@ -57,7 +57,7 @@ Read `references/reviewer-prompt.md` and fill in the template with:
 4. The code-quality lens from `references/code-quality-review.md`
 5. One line: do not modify any file; reply with findings only
 
-The same filled template goes to all reviewers, so every model applies the code-quality lens. Launch them so they run at the same time, then `wait` and read each transcript with `pstack-cli read`.
+The same filled template goes to all reviewers, so every model applies the code-quality lens. Send every reviewer's `delegate` before collecting any, then read each with `pstack-cli collect <id> --wait <ms>`.
 
 If a launch fails because that seat's CLI isn't installed, drop the seat, say so in the Reviewers section, and don't block the review on it.
 

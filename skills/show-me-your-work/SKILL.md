@@ -38,7 +38,7 @@ Use `bun skills/show-me-your-work/scripts/log.ts <logfile> <phase> <decision> <w
 
 Log decision points and checkpoints, not every action: a fork chosen, a unit completed with its verification result, a pivot or revert with its trigger, a blocker surfaced, a gate fixed. For loop runs, one row per iteration. Skip the trivial and self-evident.
 
-A run is one agent session, including its later turns and any summary of it. A pickup, a replacement agent, a new `pstack-cli run` worker, or a new chat starts a new run. When a run adds to a log that already has rows, its first row has phase `start`, and so does its first row after another run's `start` row. So a run that comes back to a log in a later turn first reads the log's last rows to see whether another run wrote since. A `start` row names the `ts` range of the rows before it that this run did not write, and its evidence names this run. Inside Herdr, that's the agent name plus `$HERDR_PANE_ID` (for example `worker-1 w2:p1`); outside Herdr, the CLI's own session id. Use phase `start` for nothing else.
+A run is one agent session, including its later turns and any summary of it. A pickup, a replacement agent, a new `pstack-cli delegate` or `pstack-cli run` worker, or a new chat starts a new run. When a run adds to a log that already has rows, its first row has phase `start`, and so does its first row after another run's `start` row. So a run that comes back to a log in a later turn first reads the log's last rows to see whether another run wrote since. A `start` row names the `ts` range of the rows before it that this run did not write, and its evidence names this run. Inside Herdr, that's the agent name plus `$HERDR_PANE_ID` (for example `worker-1 w2:p1`); outside Herdr, the CLI's own session id. Use phase `start` for nothing else.
 
 ## Where it lives
 
@@ -72,10 +72,10 @@ Correct the log, not the story. The audit never edits or removes a row, even an 
 Before handing back, start a reviewer on a different model family from the one that did the work. Self-review is not a substitute. Use a Pstack role whose configured kind/model differs from yours (check with `pstack-cli status`; set one with `pstack-cli setup --role "interrogate reviewers" --kind KIND --model MODEL` if needed):
 
 ```bash
-pstack-cli run --role "interrogate reviewers" --cwd "$PWD" --prompt "Read decisions.tsv and the transcript at <path>. Do not redo the work. Flag: decisions with weak or absent evidence; verification claimed without proof in the transcript; choices that look risky in hindsight (premature, scope-creeping, papering over a symptom); gaps a casual skim would miss. Point each flag at a row or moment. Start your reply with the line 'reviewed by <your model name>'."
+pstack-cli delegate --task-id <id> --role "interrogate reviewers" --cwd "$PWD" --prompt "Read decisions.tsv and the transcript at <path>. Do not redo the work. Flag: decisions with weak or absent evidence; verification claimed without proof in the transcript; choices that look risky in hindsight (premature, scope-creeping, papering over a symptom); gaps a casual skim would miss. Point each flag at a row or moment. Start your reply with the line 'reviewed by <your model name>'."
 ```
 
-Read the reviewer's answer with `pstack-cli read <name>` once `pstack-cli status` shows it settled. If you're not inside Herdr and `pstack-cli run` can't start a worker, say so in the Attention section instead of faking a review.
+Read the reviewer's answer with `pstack-cli collect <id> --wait <ms>` once it returns a confirmed result. If you're not in a primary pane and `pstack-cli delegate` can't start a worker, say so in the Attention section instead of faking a review.
 
 Every reply for a run that produced a trail ends with an "Attention" section. Lead with the reviewer's model on its own line (`reviewed by <model>`), then list each flag pointing to specific rows or moments. "No flags" is a valid value. The model name is not.
 

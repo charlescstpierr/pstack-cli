@@ -27,14 +27,14 @@ Scan for:
 - Test commands, CI flags, and how to reproduce a failing run locally
 - Debugging entry points: how to capture a trace, where logs land, which RPC to hit
 - Build / package-manager / sandbox surprises that cost minutes the first time
-- Herdr and Pstack CLI details: pane or agent commands that needed a retry, `pstack-cli run` roles that weren't configured, reads that missed the answer
+- Herdr and Pstack CLI details: pane or agent commands that needed a retry, `pstack-cli delegate` or `run` roles that weren't configured, collects that came back ambiguous or missed the answer
 
 ## Scope to skills and tools the session actually used
 
 Findings must point to skills, tools, or lookups invoked in this transcript. Speculative routings to skills the parent never opened do not count. To check whether a skill was used, scan the transcript for:
 
 - `pstack-cli skill <name>` invocations, or file reads of any `SKILL.md` under the Pstack `skills/` directory or another skill store
-- `pstack-cli run --skill <name>` calls, or worker prompts that name a skill path
+- `pstack-cli delegate --skill <name>` or `pstack-cli run --skill <name>` calls, or worker prompts that name a skill path
 - Tool calls (shell, grep, MCP, etc.) that match a skill's documented commands
 
 Two valid finding shapes:

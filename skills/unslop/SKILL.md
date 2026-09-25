@@ -7,7 +7,7 @@ description: "Cut AI tells from any writing. Must always apply. Use for 'unslop'
 
 Edit text to remove AI patterns.
 
-Upstream, this skill applied to every session automatically. A CLI agent has no always-on rule, so read it once per session with `pstack-cli skill unslop` and pass it by name to any worker that writes prose (`pstack-cli run --role "judgment and prose" --prompt "Run 'pstack-cli skill unslop' and apply it. Then ..."`).
+Upstream, this skill applied to every session automatically. A CLI agent has no always-on rule, so read it once per session with `pstack-cli skill unslop` and pass it by name to any worker that writes prose (`pstack-cli delegate --task-id <id> --role "judgment and prose" --prompt "Run 'pstack-cli skill unslop' and apply it. Then ..."`).
 
 ## Process
 

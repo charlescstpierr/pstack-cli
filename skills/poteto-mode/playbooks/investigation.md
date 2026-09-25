@@ -4,7 +4,7 @@
 
 Investigation requests are read-only. They produce a cited explanation or a recommendation, not a code change.
 
-1. Route through the **how** skill (`pstack-cli skill how`). For motivation questions, also route through the **why** skill (`pstack-cli skill why`). Both skills name their own delegate roles; if a role isn't configured, `pstack-cli run` fails, so set it with `pstack-cli setup --role "<role>" --kind <cli> --model <model>` or do that pass inline and say so. A delegate that must not write is told so in its brief; there's no read-only mode.
+1. Route through the **how** skill (`pstack-cli skill how`). For motivation questions, also route through the **why** skill (`pstack-cli skill why`). Both skills name their own delegate roles; if a role isn't configured, `pstack-cli delegate` fails, so set it with `pstack-cli setup --role "<role>" --kind <cli> --model <model>` or do that pass inline and say so. A read-only delegate is told not to edit project files except its mandatory `.pstack/tasks/` report; there's no read-only mode.
 2. Throughput checkpoint stays one line: `throughput checkpoint: n/a, read-only investigation`.
 3. Produce the `how`-shaped output (Overview / Key Concepts / How It Works / Where Things Live / Gotchas), or a recommendation with a tradeoffs table if the request is a decision between alternatives.
 4. Apply the **unslop** skill to the reply (`pstack-cli skill unslop`).

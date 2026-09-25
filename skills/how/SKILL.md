@@ -9,13 +9,13 @@ Explore the codebase to answer "how does X work?" questions. Produce architectur
 
 ## Running workers
 
-Every worker below is a separate CLI agent that Herdr starts in its own workspace. Launch one with:
+Every worker below is a separate CLI agent in a sibling pane of the primary's Herdr workspace. Delegate one with:
 
 ```bash
-pstack-cli run --role "<role>" --cwd "<repository path>" --prompt "<filled prompt>"
+pstack-cli delegate --task-id <id> --role "<role>" --cwd "<repository path>" --prompt "<filled prompt>"
 ```
 
-The role names a line written by `pstack-cli setup` (see the `setup-pstack` skill). `run` resolves that line to a CLI kind and model, creates a Herdr workspace with `--no-focus`, starts the agent in the root pane, submits the prompt, and returns once the agent settles as `idle`, `done`, or `blocked`. Read the full transcript afterwards with `pstack-cli read <worker>`. There is no substitute model: if the role isn't configured or its CLI isn't installed, `run` fails. Then either configure the role or do that step inline in this session and say so. Run parallel workers in separate terminals or Herdr panes, one `pstack-cli run` each. Workers have no read-only switch, so the prompt tells them not to write files.
+The role names a line written by `pstack-cli setup` (see the `setup-pstack` skill). `delegate` resolves that line to a CLI kind and model, reserves the task id, opens a sibling pane without taking focus, submits the prompt, and returns right away. Collect the result with `pstack-cli collect <id> --wait <ms>`. Only a confirmed result counts. A `working`, `blocked`, `unknown`, or `mismatch` state is not an answer, and a pane transcript proves nothing while the status is ambiguous. There is no substitute model: if the role isn't configured or its CLI isn't installed, `delegate` fails. Then either configure the role or do that step inline in this session and say so. For parallel workers, send every `delegate` first, then collect them. Workers have no read-only switch, so the prompt forbids project edits except the mandatory `.pstack/tasks/` report used by `collect`.
 
 ## Step 1. Assess Complexity
 
@@ -28,17 +28,17 @@ When in doubt, take the simple path.
 
 ## Step 2a. Explore (complex questions only)
 
-Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Launch each explorer in a separate terminal or Herdr pane:
+Decompose the question into 2 to 4 exploration angles, each a distinct slice of the subsystem. Delegate each explorer, sending them all before collecting any:
 
 - role: `how explorer`
-- prompt: `references/explorer-prompt.md` with its angle filled in, plus one line saying the worker must not modify files
+- prompt: `references/explorer-prompt.md` with its angle filled in, plus one line forbidding project edits except its mandatory report
 
 ```bash
-pstack-cli run --role "how explorer" --cwd "<repository path>" --prompt "<explorer prompt, angle 1>"
-pstack-cli run --role "how explorer" --cwd "<repository path>" --prompt "<explorer prompt, angle 2>"
+pstack-cli delegate --task-id how-1 --role "how explorer" --cwd "<repository path>" --prompt "<explorer prompt, angle 1>"
+pstack-cli delegate --task-id how-2 --role "how explorer" --cwd "<repository path>" --prompt "<explorer prompt, angle 2>"
 ```
 
-Collect each explorer's findings with `pstack-cli read`. Then go to Step 3.
+Collect each explorer's findings with `pstack-cli collect`. Then go to Step 3.
 
 ## Step 2b. Direct Explain (simple questions)
 

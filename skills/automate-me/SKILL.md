@@ -36,10 +36,10 @@ Don't read other projects' sessions. That crosses workspace boundaries and reads
 Survey recent sessions within that scope for recurring patterns. Run parallel Pstack workers across slices of history (e.g. last 2-4 weeks, split into 3 slices so each has enough material):
 
 ```bash
-pstack-cli run --role "how explorer" --cwd "$PWD" --prompt "Mine these session files for the user's working conventions: <list>. Order by mtime (ls -t). Look for the signals listed below. Return a short structured list of patterns with evidence pointers (session file plus turn). ..."
+pstack-cli delegate --task-id <id> --role "how explorer" --cwd "$PWD" --prompt "Mine these session files for the user's working conventions: <list>. Order by mtime (ls -t). Look for the signals listed below. Return a short structured list of patterns with evidence pointers (session file plus turn). ..."
 ```
 
-Each worker gets its own Herdr workspace and root pane; collect with `pstack-cli read <name>` once `pstack-cli status` shows it settled. Outside Herdr (`HERDR_ENV` unset), mine the slices yourself one at a time. Default signals worth hunting:
+Each worker gets its own sibling pane. Send every slice's `delegate` first, then collect each with `pstack-cli collect <id> --wait <ms>` until it returns a confirmed result. Outside a primary pane, where `delegate` refuses to start,, mine the slices yourself one at a time. Default signals worth hunting:
 
 - Response preferences (length, tone, format, "dumb it down" corrections)
 - Delegation habits (workers, models, specialized workflows, parallelism)

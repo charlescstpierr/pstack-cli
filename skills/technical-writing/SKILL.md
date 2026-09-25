@@ -107,7 +107,7 @@ Source: Kohl, The Global English Style Guide (SAS Press). Guideline text fetched
 A worker that writes or reviews prose runs on the `judgment and prose` role and gets this skill by name in its brief:
 
 ```bash
-pstack-cli run --role "judgment and prose" --cwd "<repo>" --prompt "Run 'pstack-cli skill technical-writing' and 'pstack-cli skill unslop' and follow both. Then <draft or review task>."
+pstack-cli delegate --task-id <id> --role "judgment and prose" --cwd "<repo>" --prompt "Run 'pstack-cli skill technical-writing' and 'pstack-cli skill unslop' and follow both. Then <draft or review task>."
 ```
 
 ## Worked example

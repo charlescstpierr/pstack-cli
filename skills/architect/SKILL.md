@@ -7,7 +7,7 @@ description: "Sketch types, signatures, and module structure before code, then s
 
 Design before implementing. Sketch types, function signatures, class shapes, and module boundaries with `not implemented` bodies and pseudocode. Synthesize across multiple model perspectives, then fill in code against the chosen sketch. If implementation proves the sketch wrong, throw it out and redesign.
 
-The other skills this one calls are read with `pstack-cli skill how`, `pstack-cli skill why`, `pstack-cli skill arena`, and `pstack-cli skill interrogate`. Follow each one's body in this session; their workers are launched with `pstack-cli run` as those skills describe.
+The other skills this one calls are read with `pstack-cli skill how`, `pstack-cli skill why`, `pstack-cli skill arena`, and `pstack-cli skill interrogate`. Follow each one's body in this session; their workers are sent to sibling panes with `pstack-cli delegate` and read back with `pstack-cli collect`, as those skills describe.
 
 ## Start
 
@@ -34,7 +34,7 @@ Run the **arena** skill with the design-sketch task and the Phase A grounding ar
 Launch the runners on the `architect runners` role instead of `arena runners`:
 
 ```bash
-pstack-cli run --role "architect runners" --cwd "<candidate path>" --prompt "<runner prompt>"
+pstack-cli delegate --task-id <id> --role "architect runners" --cwd "<candidate path>" --prompt "<runner prompt>"
 ```
 
 Seat rotation for multiple model families follows the arena skill: reconfigure `architect runners` with `pstack-cli setup` between launches and restore it after the last one. An unconfigured role fails; run the `setup-pstack` skill first.

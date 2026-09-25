@@ -11,14 +11,14 @@ Companion to the `how` skill. `how` answers what the code does and how it works.
 
 ## Running workers
 
-Each investigator and the synthesizer is a separate CLI agent that Herdr starts in its own workspace:
+Each investigator and the synthesizer is a separate CLI agent in a sibling pane of the primary's Herdr workspace:
 
 ```bash
-pstack-cli run --role "why investigators" --cwd "$PWD" --prompt "<filled prompt>"
-pstack-cli run --role "why synthesizer" --cwd "$PWD" --prompt "<filled prompt>"
+pstack-cli delegate --task-id <id> --role "why investigators" --cwd "$PWD" --prompt "<filled prompt>"
+pstack-cli delegate --task-id <id> --role "why synthesizer" --cwd "$PWD" --prompt "<filled prompt>"
 ```
 
-`run` resolves the role to a CLI kind and model from `pstack-cli setup`, creates a Herdr workspace with `--no-focus`, starts the agent in its root pane, submits the prompt, and returns once the agent settles as `idle`, `done`, or `blocked`. Read the result with `pstack-cli read <worker>`. `run` never substitutes a model: an unconfigured role fails, so run the `setup-pstack` skill first. Workers have no read-only switch; the prompt tells them not to write anything. Run parallel investigators as concurrent background jobs, one `pstack-cli run` each.
+`delegate` resolves the role to the CLI kind and model saved by `pstack-cli setup`, reserves the task id, opens a sibling pane in the primary's Herdr workspace without taking focus, submits the prompt, and returns right away. Collect with `pstack-cli collect <id> --wait <ms>`. Only a confirmed result counts. A `working`, `blocked`, `unknown`, or `mismatch` state is not an answer, and a result file or pane transcript proves nothing while the status is ambiguous. Never resend an id after an ambiguous status. `delegate` never substitutes a model: an unconfigured role fails, so run the `setup-pstack` skill first. Workers have no read-only switch; the prompt forbids project edits except the mandatory `.pstack/tasks/` report. Send every investigator's `delegate` before collecting any. The synthesizer goes out only after every investigator is collected.
 
 ## Operating Posture
 
@@ -89,7 +89,7 @@ Launch all matching investigators at once so they run concurrently. Don't ask on
 
 Worker config (each):
 - role: `why investigators`
-- the prompt says the investigator must not write anything; it has full tool access so its evidence tools keep working
+- the prompt forbids project edits except its mandatory report; it has full tool access so its evidence tools keep working
 
 Each investigator gets:
 1. The base prompt from `references/investigator-prompt.md`

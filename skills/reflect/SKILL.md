@@ -29,9 +29,9 @@ For each candidate, read the first JSONL line and check that it contains this se
 
 ### 2. Start three reviewers in parallel
 
-Three `pstack-cli run` calls, issued back to back. Each opens its own Herdr workspace with a root pane, starts the agent kind and model configured for the role, and submits the prompt. Reviewers run in agent mode with their normal tools, because they need to read code and look up context the transcript references (tickets, chat threads, traces) through whatever MCP or CLI access the configured agent kind has.
+Three `pstack-cli delegate` calls, issued back to back before any collect. Each opens a sibling pane in the primary's Herdr workspace, starts the agent kind and model configured for the role, submits the prompt, and returns. Reviewers run in agent mode with their normal tools, because they need to read code and look up context the transcript references (tickets, chat threads, traces) through whatever MCP or CLI access the configured agent kind has.
 
-Each reviewer and the synthesizer map to a Pstack role. Check what's configured with `pstack-cli status`; set a missing one with `pstack-cli setup --role ROLE --kind KIND --model MODEL`. `pstack-cli run` never substitutes an unavailable CLI, so a role that isn't configured fails loudly. Configure it, don't guess.
+Each reviewer and the synthesizer map to a Pstack role. Check what's configured with `pstack-cli status`; set a missing one with `pstack-cli setup --role ROLE --kind KIND --model MODEL`. `pstack-cli delegate` never substitutes an unavailable CLI, so a role that isn't configured fails loudly. Configure it, don't guess.
 
 | Lens | Role | Prompt template |
 |---|---|---|
@@ -39,21 +39,21 @@ Each reviewer and the synthesizer map to a Pstack role. Check what's configured 
 | Tooling | `reflect tooling` | `references/tooling-reviewer.md` |
 | Divergent | `reflect judgment, divergent, synthesizer` | `references/divergent-reviewer.md` |
 
-Pass each template verbatim as the prompt, substituting the transcript path or digest where marked:
+Pass each template verbatim as the prompt, with the transcript path or digest put in place of `<ABSOLUTE_PATH>`. Fill it in an editor or a scratch file, not by shell substitution, so the call works in PowerShell and POSIX shells alike:
 
 ```bash
-pstack-cli run --role "reflect judgment, divergent, synthesizer" --cwd "$PWD" --prompt "$(sed "s|<ABSOLUTE_PATH>|$TRANSCRIPT|" references/judgment-reviewer.md)"
-pstack-cli run --role "reflect tooling" --cwd "$PWD" --prompt "$(sed "s|<ABSOLUTE_PATH>|$TRANSCRIPT|" references/tooling-reviewer.md)"
-pstack-cli run --role "reflect judgment, divergent, synthesizer" --cwd "$PWD" --prompt "$(sed "s|<ABSOLUTE_PATH>|$TRANSCRIPT|" references/divergent-reviewer.md)"
+pstack-cli delegate --task-id reflect-judgment --role "reflect judgment, divergent, synthesizer" --cwd "<repo>" --prompt "<filled judgment-reviewer.md>"
+pstack-cli delegate --task-id reflect-tooling --role "reflect tooling" --cwd "<repo>" --prompt "<filled tooling-reviewer.md>"
+pstack-cli delegate --task-id reflect-divergent --role "reflect judgment, divergent, synthesizer" --cwd "<repo>" --prompt "<filled divergent-reviewer.md>"
 ```
 
-Paths are relative to this skill's directory. Wait until `pstack-cli status` shows each worker settled (`idle` or `done`), then collect findings with `pstack-cli read <name>`. A `blocked` worker is sitting at an approval or question dialog; inspect it with `herdr agent read <name>` and ask the user before answering it. If the reply is too long for the pane read, ask the worker to write its findings to a file under the temp dir and reply with only the path.
+Paths are relative to this skill's directory. Collect each with `pstack-cli collect <id> --wait <ms>` until it returns a confirmed result. A `blocked` worker is sitting at an approval or question dialog; ask the user before answering it. `unknown` or `mismatch` is not a finding, and neither is a pane transcript read around it. If the reply is too long to return whole, ask the worker to write its findings to a file under the temp dir and reply with only the path.
 
-Outside Herdr (`HERDR_ENV` unset), `pstack-cli run` can't start workers. Run the three lenses yourself in sequence, each as a separate pass over the transcript with the template as your instructions, and say in the summary that the passes shared one model.
+Outside a primary pane, `pstack-cli delegate` can't start workers. Run the three lenses yourself in sequence, each as a separate pass over the transcript with the template as your instructions, and say in the summary that the passes shared one model.
 
 ### 3. Synthesize
 
-One more `pstack-cli run` on the `reflect judgment, divergent, synthesizer` role. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked (`<JUDGMENT_OUTPUT>`, `<TOOLING_OUTPUT>`, `<DIVERGENT_OUTPUT>`). The synthesizer spot-verifies citations, so it also runs with normal tools. It returns a structured Accepted / Rejected / Backlog list.
+Once all three are collected, one more `pstack-cli delegate` on the `reflect judgment, divergent, synthesizer` role. Use `references/synthesizer.md` verbatim, with each reviewer's full output inlined where marked (`<JUDGMENT_OUTPUT>`, `<TOOLING_OUTPUT>`, `<DIVERGENT_OUTPUT>`). The synthesizer spot-verifies citations, so it also runs with normal tools. It returns a structured Accepted / Rejected / Backlog list.
 
 ### 4. Structural enforcement check
 

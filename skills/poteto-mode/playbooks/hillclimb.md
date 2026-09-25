@@ -12,10 +12,10 @@ Core discipline: one change, one measurement, keep or revert. Never stack untest
    - Hand the change to a delegate with the `hillclimb` role and a tight scope:
 
      ```bash
-     pstack-cli run --role "hillclimb" --cwd "<worktree>" --prompt "<one hypothesis, files, harness command>" --skill poteto-mode
+     pstack-cli delegate --task-id <id> --role "hillclimb" --cwd "<worktree>" --prompt "<one hypothesis, files, harness command>" --skill poteto-mode
      ```
 
-     Configure the role once with `pstack-cli setup --role "hillclimb" --kind <cli> --model <model>`. Supervise and review the diff (`pstack-cli read <worker>`, then `git diff` in the worktree) rather than typing it (the **guard-the-context-window** principle skill). When several independent hypotheses are live, fan them to parallel delegates as background jobs, each in its own worktree (the **separate-before-serializing-shared-state** principle skill); `pstack-cli status` tracks them.
+     Configure the role once with `pstack-cli setup --role "hillclimb" --kind <cli> --model <model>`. Supervise and review the diff (`pstack-cli collect <id>`, then `git diff` in the worktree) rather than typing it (the **guard-the-context-window** principle skill). When several independent hypotheses are live, send each to its own delegate before collecting any, each in its own worktree (the **separate-before-serializing-shared-state** principle skill); `pstack-cli tasks` tracks them.
    - Measure before and after with the frozen harness, and run the regression gate.
    - Accept only when the metric moves past noise and the gate stays green. Otherwise revert the change in full. A tweak that "might help" is not kept.
    - One commit per accepted fix, staging only the files you changed (`git add <files>`, never `-A`). Log the row either way, kept or reverted.

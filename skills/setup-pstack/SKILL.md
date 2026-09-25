@@ -5,7 +5,7 @@ description: Configure which CLI agent and model pstack uses per role. Detects t
 
 # Setup pstack
 
-Write pstack's per-role configuration through `pstack-cli setup`. Each role maps to one agent CLI kind and one model that the CLI accepts. The routed skills (`how`, `why`, `arena`, `swarm`, `architect`, `interrogate`, and the poteto-mode playbooks) launch their workers with `pstack-cli run --role <role>`, which reads this configuration and never substitutes a model.
+Write pstack's per-role configuration through `pstack-cli setup`. Choose the primary conversation separately with `pstack-cli setup --master <kind> --model <model>`; its model does not replace any worker role. Each role maps to one agent CLI kind and one model that the CLI accepts. The routed skills (`how`, `why`, `arena`, `swarm`, `architect`, `interrogate`, and the poteto-mode playbooks) send their workers to sibling panes with `pstack-cli delegate --role <role>`, which reads this configuration and never substitutes a model. Standalone `pstack-cli run --role <role>` reads the same configuration.
 
 ## Steps
 
@@ -106,7 +106,7 @@ Repeat for each role. `setup` overwrites the selection for that role only, so re
 
 ### 6. Confirm
 
-Run `pstack-cli status` and show the result. Tell the user the configuration applies to every later `pstack-cli run`, including workers already-running skills launch next. Re-running this skill updates it.
+Run `pstack-cli status` and show the result. Tell the user the configuration applies to every later `pstack-cli delegate` and `pstack-cli run`, including workers already-running skills launch next. Re-running this skill updates it.
 
 ### 7. Offer a verification skill (optional)
 

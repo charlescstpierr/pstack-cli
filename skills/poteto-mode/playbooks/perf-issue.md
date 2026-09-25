@@ -16,10 +16,10 @@
 3. Plan the fix from the trace. If it crosses a function boundary, run the **architect** skill first (`pstack-cli skill architect`). Delegate implementation with the `perf-issue` role:
 
    ```bash
-   pstack-cli run --role "perf-issue" --cwd "<worktree>" --prompt "<brief with trace path, hot frame, target number>" --skill poteto-mode
+   pstack-cli delegate --task-id <id> --role "perf-issue" --cwd "<worktree>" --prompt "<brief with trace path, hot frame, target number>" --skill poteto-mode
    ```
 
-   Configure the role once with `pstack-cli setup --role "perf-issue" --kind <cli> --model <model>`. Review the diff (`pstack-cli read <worker>`, `git diff`). Capture a post-fix trace with the same command as step 1.
+   Configure the role once with `pstack-cli setup --role "perf-issue" --kind <cli> --model <model>`. Review the diff (`pstack-cli collect <id>`, `git diff`). Capture a post-fix trace with the same command as step 1.
    Apply the **sequence-verifiable-units** principle skill, verifying each attempt before trying the next.
 4. Parse and compare the artifacts (JSON to sqlite, diff). Bulk parsing goes to a delegate with the `judgment and prose` role or a scratch script so the raw trace never lands in your context. "Inconclusive" or wrong-surface is not a pass. Flag it.
 5. Cite the measurement in the PR: baseline number, post-fix number, the command, and the artifact paths.
