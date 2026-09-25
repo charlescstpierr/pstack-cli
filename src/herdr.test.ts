@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import {
-  agentGet, agentList, agentPrompt, agentRead, agentStart, agentWait, HerdrError, workspaceCreate,
+  agentFocus, agentGet, agentList, agentPrompt, agentRead, agentStart, agentSubmit, agentWait,
+  HerdrError, paneClose, paneSplit, paneWaitOutput, workspaceCreate,
   type ArgvRunner, type RunResult,
 } from "./herdr";
 
@@ -38,6 +39,22 @@ test("creates a fresh workspace and returns its root pane without focusing", asy
     ["C:/mock/herdr.exe", "workspace", "create", "--cwd", "C:/repo with spaces", "--label", "worker-a", "--no-focus"],
     success("workspace_created", worker),
   ))).toEqual(worker);
+});
+
+test("splits a sibling pane without stealing focus and closes only that pane", async () => {
+  const pane = await paneSplit("w7:p1", "C:/repo", mock(
+    ["herdr", "pane", "split", "--pane", "w7:p1", "--direction", "right", "--cwd", "C:/repo", "--no-focus"],
+    success("pane_info", { pane: { pane_id: "w7:p2", workspace_id: "w7", tab_id: "w7:t1" } }),
+  ));
+  expect(pane).toEqual({ pane_id: "w7:p2", workspace_id: "w7", tab_id: "w7:t1" });
+  await paneClose(pane.pane_id, mock(["herdr", "pane", "close", "w7:p2"], success("ok", {})));
+});
+
+test("waits on an already-visible worker input prompt without submitting text", async () => {
+  await paneWaitOutput("w7:p2", "Ask anything", mock(
+    ["herdr", "pane", "wait-output", "--match", "Ask anything", "--timeout", "30000", "w7:p2"],
+    success("output_matched", { pane_id: "w7:p2", matched_line: "Ask anything…" }),
+  ));
 });
 
 test("separate workers use different workspace root panes; model argv is passed unchanged", async () => {
@@ -97,6 +114,14 @@ test("prompt waits for exactly idle, done, or blocked with a timeout", async () 
   ))).agent_status).toBe("blocked");
 });
 
+test("submits a worker brief and returns after first observed activity", async () => {
+  expect((await agentSubmit("worker-a", "Do the task", mock(
+    ["herdr", "agent", "prompt", "worker-a", "Do the task", "--wait",
+      "--until", "working", "--until", "done", "--until", "blocked", "--timeout", "30000"],
+    success("agent_prompted", { agent: { ...running, agent_status: "working" } }),
+  ))).agent_status).toBe("working");
+});
+
 test("wait listens for activity without submitting another prompt", async () => {
   expect(await agentWait("w7:p1", ["working", "done", "blocked"], 30000, mock(
     ["herdr", "agent", "wait", "w7:p1", "--until", "working", "--until", "done", "--until", "blocked", "--timeout", "30000"],
@@ -110,6 +135,12 @@ test("read returns plain terminal output, and list parses the agents array", asy
     { exitCode: 0, stdout: "actual output\n", stderr: "" },
   ))).toBe("actual output\n");
   expect(await agentList(mock(["herdr", "agent", "list"], success("agent_list", { agents: [running] })))).toEqual([running]);
+});
+
+test("focuses only the agent explicitly named as the primary", async () => {
+  expect(await agentFocus("worker-a", mock(
+    ["herdr", "agent", "focus", "worker-a"], success("agent_info", { agent: running }),
+  ))).toEqual(running);
 });
 
 test("get returns an identified agent or null only for a missing name", async () => {

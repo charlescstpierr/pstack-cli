@@ -30,6 +30,17 @@ describe("configuration parsing", () => {
     });
   });
 
+  test("preserves a separate master selection without changing worker roles", () => {
+    const configured = parseConfig(JSON.stringify({
+      roles: { "bug-fix": { kind: "codex", model: "gpt-6-sol" } },
+      master: { kind: "opencode", model: "openai/gpt-6-sol" },
+    }));
+    expect(configured.master).toEqual({ kind: "opencode", model: "openai/gpt-6-sol" });
+    expect(configured.roles["bug-fix"]).toEqual({ kind: "codex", model: "gpt-6-sol" });
+    expect(() => parseConfig(JSON.stringify({ roles: {}, master: { kind: "cursor", model: "x" } })))
+      .toThrow(/unsupported kind/);
+  });
+
   test("rejects invalid JSON, role names, kinds, and models", () => {
     expect(() => parseConfig("not json")).toThrow(ConfigError);
     expect(() => parseConfig(JSON.stringify({ roles: { unknown: { kind: "claude", model: "sonnet" } } }))).toThrow(/Unknown upstream role/);

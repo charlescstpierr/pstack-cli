@@ -60,6 +60,7 @@ export interface RoleSelection {
 
 export interface PstackConfig {
   roles: Partial<Record<RoleName, RoleSelection>>;
+  master?: RoleSelection;
 }
 
 export interface ResolvedRole extends RoleSelection {
@@ -90,7 +91,7 @@ function isRoleName(value: string): value is RoleName {
   return (UPSTREAM_ROLE_NAMES as readonly string[]).includes(value);
 }
 
-function parseSelection(role: RoleName, value: unknown): RoleSelection {
+function parseSelection(role: string, value: unknown): RoleSelection {
   if (!isRecord(value)) throw new ConfigError(`Role ${JSON.stringify(role)} must be an object`);
   if (!isAgentKind(value.kind)) {
     throw new ConfigError(`Role ${JSON.stringify(role)} has unsupported kind ${JSON.stringify(value.kind)}`);
@@ -117,7 +118,7 @@ export function parseConfig(json: string): PstackConfig {
   if (!isRecord(value) || !isRecord(value.roles)) {
     throw new ConfigError("Configuration must contain a roles object");
   }
-  if (Object.keys(value).some((key) => key !== "roles")) {
+  if (Object.keys(value).some((key) => key !== "roles" && key !== "master")) {
     throw new ConfigError("Configuration contains unsupported fields");
   }
 
@@ -126,7 +127,7 @@ export function parseConfig(json: string): PstackConfig {
     if (!isRoleName(name)) throw new ConfigError(`Unknown upstream role ${JSON.stringify(name)}`);
     roles[name] = parseSelection(name, selection);
   }
-  return { roles };
+  return { roles, ...("master" in value ? { master: parseSelection("master", value.master) } : {}) };
 }
 
 const readUserConfig: ConfigReader = (path) => Bun.file(path).text();

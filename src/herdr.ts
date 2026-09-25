@@ -13,6 +13,12 @@ export interface WorkspaceRoot {
   root_pane: { pane_id: string; workspace_id: string };
 }
 
+export interface SplitPane {
+  readonly pane_id: string;
+  readonly workspace_id: string;
+  readonly tab_id: string;
+}
+
 export type AgentStatus = "working" | "blocked" | "done" | "idle" | "unknown";
 
 function isAgentStatus(value: unknown): value is AgentStatus {
@@ -137,6 +143,38 @@ export async function workspaceCreate(cwd: string, label: string, runner: ArgvRu
   };
 }
 
+export async function paneSplit(source: string, cwd: string, runner: ArgvRunner = runHerdr): Promise<SplitPane> {
+  const value = await result(
+    ["pane", "split", "--pane", source, "--direction", "right", "--cwd", cwd, "--no-focus"],
+    "pane_info", runner,
+  );
+  if (!object(value.pane) || typeof value.pane.pane_id !== "string" ||
+      typeof value.pane.workspace_id !== "string" || typeof value.pane.tab_id !== "string") {
+    throw new HerdrError("invalid_response", "Split returned no pane identity", 0);
+  }
+  return {
+    pane_id: value.pane.pane_id, workspace_id: value.pane.workspace_id, tab_id: value.pane.tab_id,
+  };
+}
+
+export async function paneClose(paneId: string, runner: ArgvRunner = runHerdr): Promise<void> {
+  await result(["pane", "close", paneId], "ok", runner);
+}
+
+/** Wait for a visible CLI input prompt, including one already on screen. */
+export async function paneWaitOutput(
+  paneId: string, marker: string, runner: ArgvRunner = runHerdr,
+): Promise<void> {
+  const value = await result(
+    ["pane", "wait-output", "--match", marker, "--timeout", "30000", paneId],
+    "output_matched", runner,
+  );
+  if (value.pane_id !== paneId || typeof value.matched_line !== "string" ||
+      !value.matched_line.includes(marker)) {
+    throw new HerdrError("invalid_response", "Pane input prompt changed during readiness wait", 0);
+  }
+}
+
 /** Start only in the root pane returned by this worker's workspace creation. */
 export async function agentStart(
   name: string, kind: AgentKind, workspace: WorkspaceRoot,
@@ -176,6 +214,16 @@ export async function agentPrompt(
   return agent(value.agent);
 }
 
+/** Acknowledge a worker's first observed activity without waiting for the entire task. */
+export async function agentSubmit(target: string, text: string, runner: ArgvRunner = runHerdr): Promise<AgentInfo> {
+  const value = await result(
+    ["agent", "prompt", target, text, "--wait", "--until", "working", "--until", "done",
+      "--until", "blocked", "--timeout", "30000"],
+    "agent_prompted", runner,
+  );
+  return agent(value.agent);
+}
+
 /** Wait for actual agent activity without submitting another prompt. */
 export async function agentWait(
   target: string, statuses: readonly AgentStatus[], timeoutMs: number,
@@ -186,6 +234,57 @@ export async function agentWait(
     "agent_info", runner,
   );
   return agent(value.agent);
+}
+
+export interface PromptRequest {
+  readonly started: AgentInfo;
+  readonly text: string;
+  readonly echo: string;
+}
+
+/** A stalled submission is ambiguous; observe activity before considering one guarded retry. */
+export async function promptAndSettle(
+  request: PromptRequest,
+  runner: ArgvRunner = runHerdr,
+): Promise<{ readonly agent: AgentInfo; readonly unconfirmed: boolean }> {
+  const { started, text, echo } = request;
+  let settled: AgentInfo;
+  let unconfirmed = false;
+  try {
+    settled = await agentPrompt(started.name || started.pane_id, text, 120000, runner);
+  } catch (error) {
+    if (!(error instanceof HerdrError) || error.code !== "agent_prompt_stalled") throw error;
+    try {
+      settled = await agentWait(started.pane_id, ["working", "done", "blocked"], 30000, runner);
+      if (settled.agent_status === "working") {
+        try {
+          settled = await agentWait(started.pane_id, ["idle", "done", "blocked"], 120000, runner);
+        } catch (waitError) {
+          if (!(waitError instanceof HerdrError) || waitError.code !== "timeout") throw waitError;
+          settled = { ...settled, agent_status: "unknown" };
+          unconfirmed = true;
+        }
+      }
+    } catch (waitError) {
+      if (!(waitError instanceof HerdrError) || waitError.code !== "timeout") throw waitError;
+      const live = await agentGet(started.pane_id, runner);
+      if (!live || live.name !== started.name || live.workspace_id !== started.workspace_id ||
+          live.pane_id !== started.pane_id || live.terminal_id !== started.terminal_id ||
+          live.agent !== started.agent) throw error;
+      const screen = await agentRead(started.pane_id, 80, runner);
+      if (screen.includes(echo) || live.agent_status !== "idle" || live.interactive_ready !== true) {
+        settled = { ...live, agent_status: "unknown" };
+        unconfirmed = true;
+      } else {
+        settled = await agentPrompt(started.pane_id, text, 120000, runner);
+      }
+    }
+  }
+  if (settled.workspace_id !== started.workspace_id || settled.pane_id !== started.pane_id ||
+      settled.terminal_id !== started.terminal_id || settled.agent !== started.agent) {
+    throw new HerdrError("invalid_response", "Prompted agent changed identity", 0);
+  }
+  return { agent: settled, unconfirmed };
 }
 
 /** A missing name is a stopped worker; other Herdr errors must surface. */
@@ -214,4 +313,10 @@ export async function agentList(runner: ArgvRunner = runHerdr): Promise<AgentInf
   const value = await result(["agent", "list"], "agent_list", runner);
   if (!Array.isArray(value.agents)) throw new HerdrError("invalid_response", "Herdr response has no agents list", 0);
   return value.agents.map(agent);
+}
+
+/** Focus the named primary conversation after it is ready. */
+export async function agentFocus(target: string, runner: ArgvRunner = runHerdr): Promise<AgentInfo> {
+  const value = await result(["agent", "focus", target], "agent_info", runner);
+  return agent(value.agent);
 }

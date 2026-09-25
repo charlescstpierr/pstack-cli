@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { agentGet, agentPrompt, agentRead, agentStart, agentWait, HerdrError, runHerdr, workspaceCreate } from "./herdr";
+import { agentGet, agentRead, agentStart, promptAndSettle, HerdrError, runHerdr, workspaceCreate } from "./herdr";
 import type { AgentInfo, ArgvRunner } from "./herdr";
 import type { ResolvedRole } from "./config";
 import { saveRun } from "./store";
@@ -65,44 +65,7 @@ export async function runWorker(request: WorkerRequest, runner: ArgvRunner = run
   }
   const base = recordFor(started);
   await saveRun(runsDirectory, base);
-  let settled: AgentInfo;
-  let unconfirmed = false;
-  try {
-    settled = await agentPrompt(name, prompt, 120000, runner);
-  } catch (error) {
-    if (!(error instanceof HerdrError) || error.code !== "agent_prompt_stalled") throw error;
-    // A stalled --wait means input was submitted, not that it was rejected.
-    // Give the first submission an event-bound chance to run before inspecting it.
-    try {
-      settled = await agentWait(started.pane_id, ["working", "done", "blocked"], 30000, runner);
-      if (settled.agent_status === "working") {
-        try {
-          settled = await agentWait(started.pane_id, ["idle", "done", "blocked"], 120000, runner);
-        } catch (waitError) {
-          if (!(waitError instanceof HerdrError) || waitError.code !== "timeout") throw waitError;
-          settled = { ...settled, agent_status: "unknown" };
-          unconfirmed = true;
-        }
-      }
-    } catch (waitError) {
-      if (!(waitError instanceof HerdrError) || waitError.code !== "timeout") throw waitError;
-      const live = await agentGet(started.pane_id, runner);
-      if (!live || live.name !== name || live.workspace_id !== base.workspaceId ||
-          live.pane_id !== base.paneId || live.terminal_id !== base.terminalId ||
-          live.agent !== base.kind) throw error;
-      const screen = await agentRead(started.pane_id, 80, runner);
-      if (screen.includes(request.prompt) || live.agent_status !== "idle" || live.interactive_ready !== true) {
-        settled = { ...live, agent_status: "unknown" };
-        unconfirmed = true;
-      } else {
-        settled = await agentPrompt(started.pane_id, prompt, 120000, runner);
-      }
-    }
-  }
-  if (settled.workspace_id !== base.workspaceId || settled.pane_id !== base.paneId ||
-      settled.terminal_id !== base.terminalId || settled.agent !== base.kind) {
-    throw new HerdrError("invalid_response", "Prompted agent changed worker identity", 0);
-  }
+  const { agent: settled, unconfirmed } = await promptAndSettle({ started, text: prompt, echo: request.prompt }, runner);
   const record = { ...base, status: settled.agent_status };
   await saveRun(runsDirectory, record);
   return {

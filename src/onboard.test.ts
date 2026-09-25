@@ -5,8 +5,8 @@ import { join } from "node:path";
 import { loadConfig } from "./config";
 import { handleCommand, UPSTREAM_SETUP_SOURCE } from "./index";
 import type { ArgvRunner, RunResult } from "./herdr";
+import { readMaster } from "./master";
 import { runOnboarding } from "./onboard";
-import { listRuns } from "./store";
 
 const directories: string[] = [];
 afterEach(async () => Promise.all(directories.splice(0).map((path) => rm(path, { recursive: true }))));
@@ -45,7 +45,7 @@ test("onboarding configures a chosen Codex role after correcting invalid answers
   });
 
   await runOnboarding({
-    ask: answers(["99", "1", "2", "", "gpt-6-sol", "n"]),
+    ask: answers(["1", "gpt-6-sol", "99", "1", "2", "", "gpt-6-sol", "n"]),
     print: () => {},
     execute,
     configPath,
@@ -54,10 +54,11 @@ test("onboarding configures a chosen Codex role after correcting invalid answers
   expect((await loadConfig(configPath)).roles).toEqual({
     "bug-fix": { kind: "codex", model: "gpt-6-sol" },
   });
+  expect((await loadConfig(configPath)).master).toEqual({ kind: "codex", model: "gpt-6-sol" });
   expect(await Bun.file(join(directory, "runs")).exists()).toBe(false);
 });
 
-test("onboarding starts the chosen role after configuring two distinct CLIs", async () => {
+test("onboarding opens the master conversation after configuring two distinct worker CLIs", async () => {
   const directory = await mkdtemp(join(tmpdir(), "pstack-init-"));
   directories.push(directory);
   const configPath = join(directory, "config.json");
@@ -76,7 +77,7 @@ test("onboarding starts the chosen role after configuring two distinct CLIs", as
       agent_status: argv[2] === "prompt" ? "done" : "idle" };
     if (argv[2] === "start") return json("agent_started", { agent });
     if (argv[2] === "prompt") return json("agent_prompted", { agent });
-    if (argv[2] === "read") return { exitCode: 0, stdout: "Réponse de l'agent\n", stderr: "" };
+    if (argv[2] === "focus") return json("agent_info", { agent: { ...agent, agent_status: "idle" } });
     throw new Error(`Unexpected Herdr command ${argv.join(" ")}`);
   };
   const printed: string[] = [];
@@ -86,9 +87,9 @@ test("onboarding starts the chosen role after configuring two distinct CLIs", as
     runner, configPath,
   });
 
-  await runOnboarding({
-    ask: answers(["1,1", "1,2", "5", "sonnet", "2", "openai/gpt-6-sol",
-      "o", "2", "dossier-absent", directory, "Corrige le bogue"]),
+  const masterName = await runOnboarding({
+    ask: answers(["2", "openai/gpt-6-sol", "1,1", "1,2", "5", "sonnet", "2", "openai/gpt-6-sol",
+      "o", "dossier-absent", directory]),
     print: (line) => printed.push(line),
     execute,
     configPath,
@@ -98,13 +99,16 @@ test("onboarding starts the chosen role after configuring two distinct CLIs", as
     "--cwd", directory, "--label", name, "--no-focus"]);
   expect(calls[1]).toEqual([process.env.HERDR_BIN_PATH || "herdr", "agent", "start",
     name, "--kind", "opencode", "--pane", "pane", "--", "-m", "openai/gpt-6-sol"]);
-  expect(calls[2]).toContain("Corrige le bogue");
-  expect(printed.join("\n")).toContain("Réponse de l'agent");
+  expect(calls.map((call) => call[2])).toEqual(["create", "start", "prompt", "focus"]);
+  expect(masterName).toBe(name);
+  expect(printed.join("\n")).toContain(`${name} workspace=w-test pane=pane status=done`);
+  expect((await readMaster(configPath, name)).kind).toBe("opencode");
+  expect((await loadConfig(configPath)).master).toEqual({ kind: "opencode", model: "openai/gpt-6-sol" });
   expect((await loadConfig(configPath)).roles).toEqual({
     "judgment and prose": { kind: "claude", model: "sonnet" },
     "bug-fix": { kind: "opencode", model: "openai/gpt-6-sol" },
   });
-  expect((await listRuns(join(directory, "runs")))[0]?.name).toBe(name);
+  expect(await Bun.file(join(directory, "runs")).exists()).toBe(false);
 });
 
 test("onboarding offers only unused roles for later CLIs and saves each choice", async () => {
@@ -117,7 +121,8 @@ test("onboarding offers only unused roles for later CLIs and saves each choice",
   });
 
   await runOnboarding({
-    ask: answers(["1,2,3", "2", "sonnet", "2", "gpt-6-sol", "2", "openai/gpt-6-sol", "n"]),
+    ask: answers(["1", "sonnet", "1,2,3", "2", "sonnet", "2", "gpt-6-sol",
+      "2", "openai/gpt-6-sol", "n"]),
     print: () => {},
     execute,
     configPath,
@@ -128,4 +133,5 @@ test("onboarding offers only unused roles for later CLIs and saves each choice",
     "perf-issue": { kind: "codex", model: "gpt-6-sol" },
     hillclimb: { kind: "opencode", model: "openai/gpt-6-sol" },
   });
+  expect((await loadConfig(configPath)).master).toEqual({ kind: "claude", model: "sonnet" });
 });

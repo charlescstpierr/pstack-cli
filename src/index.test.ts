@@ -85,6 +85,21 @@ test("bare setup always displays Lauren Tan's recommendations, including a saved
   expect(await handleCommand(["--help"], dependencies)).toContain("Usage: pstack-cli");
 });
 
+test("setup saves a master separately and keeps Lauren Tan's recommendations visible", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "pstack-cli-"));
+  directories.push(directory);
+  const path = join(directory, "config.json");
+  const dependencies = { lookup, configPath: path };
+
+  await handleCommand(["setup", "--role", "how explorer", "--kind", "pi", "--model", "sonnet"], dependencies);
+  const output = await handleCommand(["setup", "--master", "codex", "--model", "gpt-6-sol"], dependencies);
+
+  expect((await loadConfig(path)).master).toEqual({ kind: "codex", model: "gpt-6-sol" });
+  expect((await loadConfig(path)).roles["how explorer"]).toEqual({ kind: "pi", model: "sonnet" });
+  expect(output).toContain(UPSTREAM_SETUP_SOURCE);
+  expect(output).toContain(`how explorer | ${UPSTREAM_MODEL_RECOMMENDATIONS["how explorer"].join(", ")} | pi sonnet`);
+});
+
 test("status does not attribute a reused agent name to a stale run", async () => {
   const directory = await mkdtemp(join(tmpdir(), "pstack-cli-"));
   directories.push(directory);

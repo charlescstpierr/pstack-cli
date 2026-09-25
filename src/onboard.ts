@@ -5,6 +5,7 @@ import { createInterface } from "node:readline/promises";
 import { AGENT_KINDS, UPSTREAM_ROLE_NAMES } from "./config";
 import type { AgentKind, RoleName } from "./config";
 import { handleCommand, UPSTREAM_MODEL_RECOMMENDATIONS } from "./command";
+import { attachMasterTerminal } from "./master";
 
 export interface OnboardingIO {
   readonly ask: (question: string) => Promise<string>;
@@ -45,7 +46,7 @@ async function required(question: string, io: OnboardingIO): Promise<string> {
   }
 }
 
-export async function runOnboarding(io: OnboardingIO): Promise<void> {
+export async function runOnboarding(io: OnboardingIO): Promise<string | undefined> {
   const execute = io.execute ?? handleCommand;
   const withConfig = (argv: string[]) => io.configPath ? [...argv, "--config", io.configPath] : argv;
 
@@ -58,7 +59,14 @@ export async function runOnboarding(io: OnboardingIO): Promise<void> {
     return;
   }
 
-  io.print("\nQuelles CLI veux-tu configurer ? Une même session peut en configurer plusieurs.");
+  io.print("\nAvec quelle CLI veux-tu me parler ? Elle sera l'agent maître de la conversation.");
+  const masterKind = await choose(installed, "Numéro de la CLI maîtresse : ", io);
+  io.print(`Recommandation Lauren Tan pour le jugement et la synthèse : ${UPSTREAM_MODEL_RECOMMENDATIONS["judgment and prose"].join(", ")} (modèle Cursor, à adapter pour ${masterKind}).`);
+  const masterModel = await required(`Modèle de la conversation accepté par ${masterKind} : `, io);
+  await execute(withConfig(["setup", "--master", masterKind, "--model", masterModel]));
+  io.print(`Conversation principale : ${masterKind} ${masterModel}.`);
+
+  io.print("\nQuelles CLI veux-tu configurer pour les rôles workers ? Une même session peut en configurer plusieurs.");
   const selected = await chooseMany(installed, io);
   const configured: Array<{ readonly role: RoleName; readonly kind: AgentKind }> = [];
   for (const kind of selected) {
@@ -72,37 +80,35 @@ export async function runOnboarding(io: OnboardingIO): Promise<void> {
     io.print(`Rôle enregistré : ${role} -> ${kind} ${model}.`);
   }
 
-  const launch = (await io.ask("Lancer un premier agent maintenant ? (o/N) : ")).trim().toLowerCase();
+  const launch = (await io.ask("Ouvrir ta conversation avec l'agent maître maintenant ? (o/N) : ")).trim().toLowerCase();
   if (launch !== "o" && launch !== "oui") {
-    io.print('Terminé. Pour la suite : pstack-cli status, read NOM ou resume NOM --prompt "Suite".');
+    io.print('Terminé. Pour la suite : pstack-cli chat --cwd "CHEMIN_DU_PROJET".');
     return;
   }
 
-  const role = configured.length === 1
-    ? configured[0].role
-    : await choose(configured.map((item) => item.role), "Numéro du rôle à lancer : ", io);
   let cwd: string;
   while (true) {
     cwd = await required("Chemin absolu du dossier où l'agent travaillera : ", io);
     if (isAbsolute(cwd) && existsSync(cwd) && statSync(cwd).isDirectory()) break;
     io.print("Donne le chemin absolu d'un dossier existant.");
   }
-  const prompt = await required("Que doit faire l'agent ? ", io);
-  io.print(await execute(withConfig(["run", "--role", role, "--cwd", cwd, "--prompt", prompt])));
-  io.print("L'agent reste dans son propre workspace Herdr. Note son nom pstack-... pour reprendre son travail.");
+  const opened = await execute(withConfig(["chat", "--cwd", cwd]));
+  io.print(opened);
+  io.print("Parle directement à l'agent maître ; il utilisera les rôles configurés et leurs CLI pour déléguer via Herdr.");
+  return opened.split(" ", 1)[0];
 }
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
   if (args.length === 1 && (args[0] === "--help" || args[0] === "help")) {
-    console.log("Usage: pstack-init [--config PATH]\nGuide interactif pour choisir une CLI, un rôle, un modèle et lancer un premier agent.");
+    console.log("Usage: pstack-init [--config PATH]\nGuide interactif pour choisir l'agent maître, les rôles workers et ouvrir la conversation.");
   } else if (args.length !== 0 && (args.length !== 2 || args[0] !== "--config" || !args[1])) {
     console.error("Usage: pstack-init [--config PATH]");
     process.exitCode = 1;
   } else {
     const input = createInterface({ input: process.stdin, output: process.stdout });
     try {
-      await runOnboarding({
+      const masterName = await runOnboarding({
         ask: async (question) => {
           const answer = await input.question(question);
           process.stdout.write("\r\n");
@@ -111,6 +117,11 @@ if (import.meta.main) {
         print: (message) => process.stdout.write(`${message.replace(/\r?\n/g, "\r\n")}\r\n`),
         ...(args[1] ? { configPath: args[1] } : {}),
       });
+      if (masterName && process.stdin.isTTY && process.stdout.isTTY && !process.env.HERDR_ENV) {
+        input.close();
+        process.stdout.write("Quitter le terminal direct avec ctrl+b puis q ; la conversation reste dans Herdr.\r\n");
+        process.exitCode = await attachMasterTerminal(masterName);
+      }
     } catch (error) {
       console.error(error instanceof Error ? error.message : String(error));
       process.exitCode = 1;
