@@ -1,6 +1,6 @@
 # Pstack CLI
 
-> **Archivé.** Ce dépôt continue dans [pstack-orchestrator](https://github.com/charlescstpierr/pstack-orchestrator), qui reprend tout son contenu (maître, rôles, délégation Herdr) et y ajoute les worktrees, le gate, le merge, le serveur MCP et le dashboard. Ce dépôt reste consultable en lecture seule.
+> **Archivé.** Ce dépôt continue dans [pstack-orchestrator](https://github.com/charlescstpierr/pstack-orchestrator), qui reprend tout son contenu. Il reste consultable en lecture seule.
 
 Une adaptation indépendante du [Pstack de Lauren Tan pour Cursor](https://github.com/cursor/plugins/tree/78f46dacbafc71fd7d937bfc2c26da914f1bc09b/pstack). Elle conserve ses compétences, ses playbooks et les recommandations de son setup, mais lance les agents dans **leurs propres CLI** (Claude Code, Codex, OpenCode ou Pi), chacune dans un workspace [Herdr](#prerequis) distinct. Ce n'est pas une version officielle de Cursor, de Lauren Tan ou de Herdr.
 
